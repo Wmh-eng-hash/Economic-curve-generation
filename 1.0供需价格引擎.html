@@ -1,0 +1,2461 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>供需-价格 实时引擎 · 需求·供给 / 价格·数量</title>
+<style>
+:root{
+  --bg:#0d1117; --panel:#151b25; --panel2:#1b2330; --line:#232c3b; --txt:#e6edf3; --muted:#8b98ad;
+  --pos:#7ee0a8; --neg:#ff7a59; --blue:#4aa8ff; --gold:#ffd166; --purple:#b78cff;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--txt);font-family:"Microsoft YaHei","PingFang SC","Segoe UI",system-ui,sans-serif;font-size:14px}
+body{min-height:100vh;background:radial-gradient(1200px 600px at 10% -10%,#15243a 0%,transparent 60%),radial-gradient(900px 500px at 100% 0%,#241a2e 0%,transparent 55%),var(--bg)}
+a{color:var(--blue)}
+h1,h2,h3,h4{margin:0 0 10px}
+h3{font-size:15px;color:#cfd8e3;font-weight:600}
+.muted{color:var(--muted);font-weight:400;font-size:12px}
+.pos{color:var(--pos)!important} .neg{color:var(--neg)!important}
+.header{display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20;background:rgba(13,17,23,.92);backdrop-filter:blur(8px);flex-wrap:nowrap;overflow-x:auto}
+.brand{display:flex;align-items:baseline;gap:10px;flex-shrink:0;white-space:nowrap}
+.brand b{font-size:18px;letter-spacing:.5px}
+.brand span{color:var(--muted);font-size:12px}
+.modes{display:flex;gap:6px;margin-left:8px}
+.modes button{background:var(--panel);color:var(--txt);border:1px solid var(--line);padding:7px 14px;border-radius:8px;cursor:pointer;font-size:13px;white-space:nowrap}
+.modes button.on{background:#223046;border-color:#3a5a86;color:#fff}
+.header .spacer{flex:1}
+.rate-chip{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);padding:7px 12px;border-radius:8px;cursor:pointer;font-size:12px;color:#cfd8e3;white-space:nowrap}
+.rate-chip:hover{border-color:#3a5a86}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.clock{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.btn{background:var(--panel2);color:var(--txt);border:1px solid var(--line);padding:8px 14px;border-radius:8px;cursor:pointer;font-size:13px}
+.btn:hover{border-color:#3a5a86}
+.btn.primary{background:linear-gradient(180deg,#2e6fd6,#2458a8);border-color:#3f78c8;color:#fff}
+.btn.ghost{background:transparent}
+.view{display:none;padding:18px 20px 60px;max-width:1500px;margin:0 auto}
+.view.active{display:block}
+.grid-auto{display:grid;grid-template-columns: 1.25fr .95fr;gap:16px}
+@media (max-width:1100px){.grid-auto{grid-template-columns:1fr}}
+.card{background:linear-gradient(180deg,rgba(27,35,48,.9),rgba(21,27,37,.9));border:1px solid var(--line);border-radius:14px;padding:16px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.tab{display:flex;flex-direction:column;align-items:flex-start;gap:2px;background:var(--panel);border:1px solid var(--line);color:var(--txt);padding:8px 14px;border-radius:10px;cursor:pointer;min-width:120px}
+.tab b{font-size:13px} .tab span{font-size:11px;color:var(--muted)}
+.tab.on{border-color:#3a5a86;background:#1d2a3d;box-shadow:0 0 0 1px #3a5a86 inset}
+.hero{background:linear-gradient(160deg,rgba(30,52,80,.55),rgba(21,27,37,.9));border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px;position:relative;overflow:hidden}
+.hero-head{display:flex;justify-content:space-between;align-items:flex-start}
+.hero-title{font-size:18px;font-weight:700}
+.hero-title .unit{font-size:12px;color:var(--muted);font-weight:400;margin-left:6px}
+.hero-sub{font-size:12px;color:var(--muted);margin-top:4px}
+.hero-tag{font-size:12px;padding:4px 10px;border-radius:999px;border:1px solid var(--line);color:#cfd8e3}
+.hero-tag.ok{background:rgba(126,224,168,.12);border-color:rgba(126,224,168,.4);color:var(--pos)}
+.hero-tag.warn{background:rgba(255,209,102,.12);border-color:rgba(255,209,102,.5);color:var(--gold)}
+.hero-price{font-size:40px;font-weight:800;margin:12px 0 6px;font-variant-numeric:tabular-nums;letter-spacing:.5px}
+.hero-price .chg{font-size:15px;font-weight:600;margin-left:12px;vertical-align:middle}
+.hero-price.up .chg{color:var(--pos)} .hero-price.down .chg{color:var(--neg)}
+.hero-meta{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);align-items:center}
+.pill{background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:2px 10px}
+.extreme{margin-top:10px;padding:8px 12px;border-radius:8px;background:rgba(255,122,89,.12);border:1px solid rgba(255,122,89,.45);color:#ffb3a0;font-size:12px}
+#spark{margin-top:10px}
+.drivers{display:flex;flex-direction:column;gap:8px}
+.drv{display:grid;grid-template-columns:150px 1fr 64px;grid-template-areas:"k bar v" "n bar v";gap:2px 10px;align-items:center}
+.drv-k{grid-area:k;font-size:12px;color:#cfd8e3}
+.drv-n{grid-area:n;font-size:11px}
+.drv-bar{grid-area:bar;height:8px;background:#0f141c;border-radius:4px;overflow:hidden}
+.drv-bar i{display:block;height:100%;border-radius:4px}
+.drv-bar i.pos{background:linear-gradient(90deg,#2f8f63,var(--pos))}
+.drv-bar i.neg{background:linear-gradient(90deg,#a8412c,var(--neg))}
+.drv-v{grid-area:v;text-align:right;font-variant-numeric:tabular-nums;font-size:12px}
+.scenario{margin-top:12px;padding:10px 12px;border-radius:10px;background:var(--panel2);border:1px solid var(--line);font-size:13px}
+.shock-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.shk{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px}
+.shk .k{font-size:11px;color:var(--muted)}
+.shk .v{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums}
+.legend{font-size:12px;margin-top:8px;line-height:1.6}
+.ev-list{display:flex;flex-direction:column;gap:8px;max-height:340px;overflow:auto}
+.ev-item{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;cursor:pointer}
+.ev-item:hover{border-color:#3a5a86}
+.ev-top{display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}
+.ev-text{font-size:12.5px;line-height:1.5;margin:3px 0 5px}
+.ev-chips{display:flex;gap:4px;flex-wrap:wrap}
+.chip{font-size:11px;padding:1px 7px;border-radius:999px;background:#222c3a;border:1px solid var(--line);color:#cfd8e3}
+.chip.pos{color:var(--pos);border-color:rgba(126,224,168,.35)}
+.chip.neg{color:var(--neg);border-color:rgba(255,122,89,.35)}
+.chip.q{color:var(--gold);border-color:rgba(255,209,102,.35)}
+.history-table{width:100%;border-collapse:collapse;font-size:12.5px}
+.history-table th,.history-table td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums}
+.history-table th:first-child,.history-table td:first-child{text-align:left}
+.history-table td.t{text-align:left}
+.history-table tr.hl td{background:rgba(255,209,102,.07);color:#fff}
+.tag-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px;font-size:12px;color:var(--muted)}
+.tag-row select,.tag-row input{background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:6px;padding:4px 8px}
+/* 手绘 */
+.hand-grid{display:grid;grid-template-columns: 1.15fr 1fr;gap:16px}
+@media (max-width:1100px){.hand-grid{grid-template-columns:1fr}}
+.hand-head{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.hand-head label{display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--muted)}
+.hand-head input{background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:6px;padding:6px 8px;width:120px}
+.hand-note{font-size:12px;margin-bottom:12px;line-height:1.6}
+.factor-group{margin-bottom:12px}
+.factor-group h4{font-size:13px;color:var(--gold);margin:6px 0}
+.factor-list{display:grid;grid-template-columns:1fr;gap:8px}
+.factor{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.f-name{font-size:13px;font-weight:600}
+.f-desc{font-size:11px;margin:2px 0 6px}
+.f-ctrl{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.dir{background:#1a2230;border:1px solid var(--line);color:#cfd8e3;border-radius:8px;padding:5px 10px;cursor:pointer;font-size:12px}
+.dir.up.on{background:rgba(126,224,168,.18);border-color:var(--pos);color:var(--pos)}
+.dir.down.on{background:rgba(255,122,89,.18);border-color:var(--neg);color:var(--neg)}
+.size{display:flex;gap:4px;align-items:center;font-size:11px;color:var(--muted);margin-left:6px}
+.sz{background:#1a2230;border:1px solid var(--line);color:#cfd8e3;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px}
+.sz.on{background:#2e4770;border-color:#4a7bbd;color:#fff}
+.clear{background:transparent;border:1px dashed var(--line);color:var(--muted);border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px;margin-left:auto}
+#handChart svg{background:#0f141c;border-radius:10px;border:1px solid var(--line);width:100%;height:auto}
+.ax{fill:#8b98ad;font-size:11px}
+.hr-title{font-size:15px;font-weight:700;margin:10px 0}
+.hr-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.hr{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px}
+.hr .k{font-size:11px;color:var(--muted)} .hr .v{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums} .hr .s{font-size:11px;color:var(--muted)}
+.hr-note{font-size:12px;margin-top:8px;line-height:1.6}
+/* 数据 */
+.data-grid{display:grid;grid-template-columns: 1.1fr 1fr;gap:16px}
+@media (max-width:1100px){.data-grid{grid-template-columns:1fr}}
+.drop{border:2px dashed #30405a;border-radius:14px;padding:26px;text-align:center;cursor:pointer;background:var(--panel2);transition:.15s}
+.drop.over{border-color:var(--blue);background:#1b2a3f}
+.drop b{display:block;margin-bottom:6px;font-size:15px}
+textarea{width:100%;background:#0f141c;border:1px solid var(--line);color:var(--txt);border-radius:10px;padding:10px;font-family:Consolas,"Courier New",monospace;font-size:12px;line-height:1.5;resize:vertical}
+.mf-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.mf-grid label,.modal label.full{display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--muted)}
+input[type=date],select,.modal input[type=number],.modal input:not([type]),.modal select{background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:6px;padding:7px 8px}
+.mf-actions{display:flex;gap:8px;margin-top:10px}
+.log-line{font-size:12px;color:#cfd8e3;margin:8px 0}
+.log-warn{font-size:12px;color:var(--gold);line-height:1.6;margin-bottom:8px}
+/* modal */
+.modal-dim{position:fixed;inset:0;background:rgba(5,8,12,.72);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px}
+.modal{background:#141b25;border:1px solid #2d3a4e;border-radius:16px;padding:20px;width:min(860px,96vw);max-height:90vh;overflow:auto;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+.modal h2{font-size:18px}
+.modal p{line-height:1.7;font-size:13px}
+.rate-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+@media (max-width:700px){.rate-grid{grid-template-columns:1fr}}
+.rate-row{display:grid;grid-template-columns:1fr 90px 28px;align-items:center;gap:8px;font-size:12px;color:#cfd8e3}
+.rate-preview{background:#0f141c;border:1px solid var(--line);border-radius:10px;padding:10px;font-size:12.5px;line-height:1.8;margin:10px 0}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:14px}
+.ev-meta{display:flex;gap:10px;font-size:12px;color:var(--muted)}
+.ev-full{font-size:14px}
+.builder{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+@media (max-width:700px){.builder{grid-template-columns:1fr}}
+.bld{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.bld-n{width:100%;font-size:12px;font-weight:600}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1e2a3b;border:1px solid #3a5a86;color:#fff;padding:10px 16px;border-radius:10px;z-index:200;font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,.5);transition:.4s}
+.toast.ok{border-color:var(--pos)} .toast.warn{border-color:var(--gold)}
+.toast.out{opacity:0;transform:translateX(-50%) translateY(10px)}
+.footer{margin-top:24px;font-size:11px;color:#5d6a7e;line-height:1.8}
+</style>
+</head>
+<body>
+<header class="header">
+  <div class="brand"><b>供需·价格 实时引擎</b><span>需求-供给 / 价格-数量 · 客观变化规律</span></div>
+  <div class="modes">
+    <button id="modeAuto" class="on">自动模式</button>
+    <button id="modeHand">手绘模式</button>
+    <button id="modeData">新闻库 / TXT 解码</button>
+  </div>
+  <div class="spacer"></div>
+  <div class="rate-chip" id="rateChip">今日利率未录入</div>
+  <div class="clock" id="clock"></div>
+</header>
+
+<!-- ================= 自动模式 ================= -->
+<section class="view active" id="view-auto">
+  <div class="tabs" id="tabs"></div>
+  <div class="grid-auto">
+    <div>
+      <div class="card hero" id="hero"></div>
+      <div class="tag-row">
+        <span>实时刷新：</span>
+        <select id="speed">
+          <option value="1000" selected>1 秒</option>
+          <option value="2000">2 秒</option>
+          <option value="5000">5 秒</option>
+          <option value="15000">15 秒</option>
+        </select>
+        <span>美元指数 DXY</span><input id="instGold" type="number" step="0.1" value="100" style="width:80px">
+        <span>OPEC 闲置产能（百万桶/日）</span><input id="instOil" type="number" step="0.1" value="2.1" style="width:80px">
+        <span>气库存/五年均值</span><input id="instGas" type="number" step="0.01" value="1" style="width:74px">
+        <button class="btn ghost" id="rateEdit">修改今日利率</button>
+      </div>
+      <div class="card" id="sparkCard"><h3>实时价格轨迹<span class="muted">（观测噪声 + 向出清目标回归）</span></h3><div id="spark"></div></div>
+    </div>
+    <div>
+      <div class="card" id="drivers"></div>
+      <div class="card" id="shockTable" style="margin-top:16px"></div>
+      <div class="card" id="topEvents" style="margin-top:16px"></div>
+    </div>
+  </div>
+  <div class="card" id="history" style="margin-top:16px"></div>
+  <div class="card" id="dailyTable" style="margin-top:16px"></div>
+</section>
+
+<!-- ================= 手绘模式 ================= -->
+<section class="view" id="view-hand">
+  <div class="hand-grid">
+    <div class="card">
+      <h3>我写物品，我来选变量<span class="muted">（价格因素 / 非价格因素 → 需求大了/小了、供给多了/少了…）</span></h3>
+      <div class="hand-head" id="handHead"></div>
+      <div id="handFactors"></div>
+    </div>
+    <div class="card">
+      <h3>供需曲线与结果</h3>
+      <div id="handChart"></div>
+      <div id="handResult"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 数据 / TXT 解码 ================= -->
+<section class="view" id="view-data">
+  <div class="data-grid">
+    <div class="card">
+      <h3>TXT 解码器<span class="muted">（UTF-8 / GBK / UTF-16 自动识别；CSV / TSV / 表格 / JSON / 自由新闻体）</span></h3>
+      <div class="drop" id="dropZone">
+        <b>点击选择，或把 .txt 拖到这里</b>
+        <span class="muted">支持一次多个文件；新增事件立即进入算法</span>
+      </div>
+      <input type="file" id="fileInput" accept=".txt,.csv,.tsv,.json,.log,.md,text/plain" multiple hidden>
+      <div style="margin:12px 0 6px" class="muted">或者直接粘贴文本：</div>
+      <textarea id="pasteArea" rows="8" placeholder="例：
+2026-10-31,黄金,中东局势升级，避险需求大增，金价上行
+2026-10-31 原油 OPEC+ 减产，供给收紧，油价上涨
+黄金 | 2026-10-30 | 央行购金 CB+2"></textarea>
+      <div class="mf-actions">
+        <button class="btn primary" id="btnPaste">解码粘贴文本</button>
+        <button class="btn ghost" id="btnSeed">载入内置示例库</button>
+        <button class="btn ghost" id="btnClearExtra">清空导入事件</button>
+      </div>
+      <div id="decodeLog"></div>
+      <div class="legend muted">
+        写法：<b>DR+2</b> 需求+2 · <b>DS-1.5</b> 供给-1.5 · <b>SH+1</b> 库存+1 · <b>SP+3</b> 价格+3 · <b>CB+2</b> 央行购金 · <b>GE+1</b> 地缘 · <b>IM+1</b> 通胀。<br>
+        不写数值也行：出现「需求大增 / 减产 / 中断 / 累库 / 成本上涨 / 通胀」等词会自动识别方向与强度。
+      </div>
+      <h3 style="margin-top:16px">多格式示例</h3>
+      <div class="mf-actions">
+        <button class="btn ghost" id="btnSampleCsv">下载 CSV 示例</button>
+        <button class="btn ghost" id="btnSampleTable">下载表格示例</button>
+        <button class="btn ghost" id="btnSampleNews">下载自由新闻体示例</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3>手动添加事件</h3>
+      <div id="manualForm"></div>
+      <h3 style="margin-top:18px">事件库 <span class="muted" id="eventCount"></span></h3>
+      <div class="ev-list" style="max-height:420px">
+        <table class="history-table" id="eventTable"><thead><tr><th>日期</th><th>品种</th><th>事件</th><th>DR</th><th>DS</th><th>标记</th></tr></thead><tbody></tbody></table>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <h3>算法说明</h3>
+    <div class="legend">
+      <b>1. 核：线性/对数线性供需</b>　D: q = A − |Ed|·p，S: q = B + Es·(p − τ)，均衡 η = (A−B+Es·τ)/(Es+|Ed|)。需求曲线右移 → P↑ Q↑；供给曲线右移 → P↓ Q↑；成本↑ → 供给左移 → P↑ Q↓。价格因素只引起<b>沿需求曲线</b>移动，非价格因素引起<b>曲线整体位移</b>。<br>
+      <b>2. 黄金特例</b>　没有生产成本意义上的供给弹性，库存即流量：价格 = f(实际利率 i−π, 美元指数, 风险溢价/地缘, 央行购金, 投机因子)，并用历史年均价做弱均值回归（2026 YTD 4542.81 为实时锚，HistorySaid 4886.36 为预测锚）。<br>
+      <b>3. 原油特例</b>　短期供给近零弹性（投资周期 3–5 年）；把 OPEC 闲置产能作为供给弹性的“调节阀”：闲置产能高 → 同样冲击价格变化小；闲置产能低 + 断供 → 价格尖峰（2020 负油价 / 2022 冲突两种极端）。<br>
+      <b>4. 天然气特例</b>　难储运 → 库存就是供给；需求高度季节性与天气驱动，冬季低库存触发非线性尖峰，淡季高库存触发塌陷。<br>
+      <b>5. 日用品</b>　标价（厂商建议零售价）是心理锚，实付价 = 标价 ×(1−折扣率)；折扣率随需求冲击与渠道议价移动，属“价格歧视 + 促销”下的高弹性市场。<br>
+      <b>6. 实时</b>　dP/P = κ(lnTarget − lnP)dt + σdW，观测价每 tick 更新一次并与先验做卡尔曼式加权；事件冲击按半衰期衰减（商品 75h、日用品 300h），预期/传闻类事件权重减半。<br>
+      <b>7. 通胀判定</b>　由每日录入的「名义利率 − 核心 CPI」得到实际利率，判定通胀/通缩/低通胀，并计算输入型通胀与“极端情景强度”，用于黄金机会成本与极端模式的特例算法。
+    </div>
+    <div class="footer">数据口径：黄金 MoneyMetals / HistorySaid；布伦特与 Henry Hub：FRED / HistorySaid；2026 年商品为 YTD 均价或预估；日用品标价/实付为 2026 年实测。商品事件为按公开年度走势整理的示例，请以你导入的真实新闻库为准。</div>
+  </div>
+</section>
+
+<script>﻿/* =========================================================================
+ * 供需-价格 实时引擎 · 核心模型
+ * 仅在页面中定义了 __HEADLESS__ 时不挂载 UI（用于 Node 端算法自测）
+ * ========================================================================= */
+(function (G) {
+  'use strict';
+  var HEADLESS = !!G.__HEADLESS__;
+  var HAS_DOM = !HEADLESS && typeof document !== 'undefined';
+
+/* ----------------------------- 0. 基础工具 ----------------------------- */
+/* clamp：NaN / undefined 一律回落到 0（比 Math.min/max 更安全，避免 NaN 传染整条事件） */
+function clamp(v, lo, hi) { var x = Number(v); if (!isFinite(x)) x = 0; return x < lo ? lo : (x > hi ? hi : x); }
+function lerp(a, b, t) { return a + (b - a) * t; }
+function sgn(v) { return v > 0 ? 1 : (v < 0 ? -1 : 0); }
+function avg(a) { var s = 0; for (var i = 0; i < a.length; i++) s += a[i]; return a.length ? s / a.length : 0; }
+function std(a) {
+  if (a.length < 2) return 0;
+  var m = avg(a), s = 0;
+  for (var i = 0; i < a.length; i++) { var d = a[i] - m; s += d * d; }
+  return Math.sqrt(s / a.length);
+}
+function sum(a) { var s = 0; for (var i = 0; i < a.length; i++) s += a[i]; return s; }
+function num(v, d) { if (v === '' || v == null) return d; v = Number(v); return isFinite(v) ? v : d; }
+function pct(x, d) { return (x * 100).toFixed(d == null ? 1 : d) + '%'; }
+function fnum(x, d) {
+  if (!isFinite(x)) return '—';
+  d = d == null ? 2 : d;
+  return Number(x).toLocaleString('zh-CN', { minimumFractionDigits: d, maximumFractionDigits: d });
+}
+function fmtMoney(x, cur) {
+  if (!isFinite(x)) return '—';
+  var d = Math.abs(x) < 10 ? 2 : (Math.abs(x) < 100 ? 2 : (Math.abs(x) < 10000 ? 2 : 2));
+  return (cur === 'CNY' ? '¥' : '$') + fnum(x, d);
+}
+function toNumLoose(s) {
+  if (s == null) return NaN;
+  var t = String(s).replace(/[，,＋+]/g, '').replace(/[$¥￥%]/g, '').replace(/^约|^~|~$/g, '').trim();
+  if (!t) return NaN;
+  var v = parseFloat(t);
+  return isFinite(v) ? v : NaN;
+}
+function escHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+function pad2(n) { return (n < 10 ? '0' : '') + n; }
+function dateStr(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+function timeStr(d) { return pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds()); }
+function parseDateLoose(s) {
+  if (!s) return null;
+  s = String(s).trim();
+  var m = s.match(/^(\d{4})[-/.年](\d{1,2})(?:[-/.月](\d{1,2}))?/);
+  if (m) return new Date(+m[1], +m[2] - 1, +(m[3] || 1));
+  m = s.match(/^(\d{1,2})[-/.月](\d{1,2})/);
+  if (m) return new Date(new Date().getFullYear(), +m[1] - 1, +m[2]);
+  var d = new Date(s);
+  return isNaN(d.getTime()) ? null : d;
+}
+function dayKeyOf(d) { return dateStr(d); }
+
+/* 平滑：tanh，限制极端 */
+function sat(x, cap) { return cap * Math.tanh(x / cap); }
+
+/* 伪随机：由种子确定的 LCG */
+function lcg(seed) {
+  var s = seed >>> 0 || 1;
+  return function () { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+}
+
+/* ----------------------------- 1. 参考数据 ----------------------------- */
+/* 历史年均价（用户提供：MoneyMetals / FRED 口径；对照列为 HistorySaid） */
+var REF_SERIES = {
+  gold: {
+    name: '黄金', unit: '美元/盎司', cur: 'USD',
+    years: [2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026],
+    src: [1573.16, 1668.86, 1409.51, 1266.06, 1158.86, 1251.92, 1260.39, 1268.93, 1393.34, 1773.73, 1798.89, 1801.87, 1927.99, 2386.20, 3431.54, 4542.81],
+    alt: [1569.21, 1669.52, 1411.46, 1265.58, 1160.66, 1248.99, 1257.56, 1269.23, 1392.50, 1770.25, 1799.63, 1800.60, 1942.67, 2387.70, 3441.51, 4886.36],
+    srcLabel: 'MoneyMetals', altLabel: 'HistorySaid', altKind: '全年预估/均价口径',
+    anchorNote: '2026 为 YTD 均价（实时锚点），HistorySaid 4886.36 为全年预估（预测参照）',
+    mean: 1691.42, sd: 565.81,
+    spareBase: 2.1, storageBase: 1.0, dxyBase: 100, realBase: 1.5
+  },
+  brent: {
+    name: '布伦特原油', unit: '美元/桶', cur: 'USD',
+    years: [2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026],
+    src: [111.26, 111.63, 108.56, 98.97, 52.32, 43.64, 54.13, 71.34, 64.30, 41.96, 70.86, 100.93, 82.49, 80.52, 69.14, null],
+    alt: [110.94, 111.97, 108.86, 98.94, 52.37, 44.05, 54.39, 71.07, 64.03, 42.30, 70.44, 99.82, 82.62, 80.70, 69.04, 68.94],
+    srcLabel: 'FRED', altLabel: 'HistorySaid', altKind: 'YTD/预估',
+    anchorNote: '2026 采用 HistorySaid 68.94（YTD/预估）作为实时锚点',
+    mean: 77.47, sd: 23.42,
+    spareBase: 2.1, storageBase: 1.0, dxyBase: 100, realBase: 1.5
+  },
+  gas: {
+    name: 'Henry Hub 天然气', unit: '美元/MMBtu', cur: 'USD',
+    years: [2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026],
+    src: [4.00, 2.75, 3.73, 4.28, 2.63, 2.55, 3.02, 3.07, 2.53, 2.13, 3.72, 6.52, 2.67, 2.42, 3.63, null],
+    alt: [4.00, 2.75, 3.72, 4.37, 2.61, 2.49, 2.96, 3.16, 2.57, 2.01, 3.85, 6.37, 2.54, 2.19, 3.53, 5.60],
+    srcLabel: 'FRED', altLabel: 'HistorySaid', altKind: 'YTD/预估',
+    anchorNote: '2026 采用 HistorySaid 5.60（YTD/预估）作为实时锚点',
+    mean: 3.31, sd: 1.06,
+    spareBase: 2.1, storageBase: 1.0, dxyBase: 100, realBase: 1.5
+  }
+};
+
+/* 日用品：标价 / 实付（2026 实测） */
+var DAILY_GOODS = [
+  { id: 'lush_youlian', name: '力士精油香氛沐浴乳幽莲魅肤720g', list: 42.9, paid: 13.0, unit: '瓶', cat: '沐浴' },
+  { id: 'dove_peach_bath', name: '多芬白桃白茶香清爽美肤沐浴露720g', list: 47.9, paid: 13.87, unit: '瓶', cat: '沐浴' },
+  { id: 'dove_peach_foam', name: '多芬白桃果香绵密沐浴泡泡400ml', list: 59.9, paid: 13.0, unit: '瓶', cat: '沐浴' },
+  { id: 'loreal_conditioner', name: '欧莱雅精油润养润发乳700ml', list: 70.0, paid: 19.83, unit: '瓶', cat: '洗护' },
+  { id: 'loreal_shampoo', name: '欧莱雅透明质酸水润去屑洗发露700ml', list: 70.0, paid: 19.82, unit: '瓶', cat: '洗护' },
+  { id: 'lion_toothbrush', name: '狮王细齿洁晶彩牙刷2支特惠装', list: 14.0, paid: 11.9, unit: '组', cat: '口腔' }
+];
+
+/* 价格区间（自由文本解析用） */
+var PRICE_BAND = {
+  gold: { nice: [2700, 5000], hard: [900, 9000] },
+  brent: { nice: [35, 150], hard: [1, 260] },
+  gas: { nice: [1.2, 9], hard: [0.05, 22] },
+  daily: { nice: [3, 120], hard: [0.5, 400] }
+};
+
+/* --------------------------- 2. 需求-供给核 --------------------------- */
+/* 线性供需（物理学式的“变化规律”）：
+ *   需求  Qd = a - b·P        (b>0)
+ *   供给  Qs = c + d·P        (d>0，长期 d 更大)
+ *   均衡  P* = (a-c)/(b+d),  Q* = (ad+bc)/(b+d)
+ * 均衡点附近的需求价格弹性 Ed = -(bP/Q)，供给价格弹性 Es = (dP/Q)。
+ * 弹性取绝对值：|Ed| 越大，需求越“敏感”。                          */
+function marketClear(a, c, b, slopeS) {
+  var P = (a - c) / (b + slopeS);
+  var Q = a - b * P;
+  if (!(Q > 0)) { P = Math.max(0.01, (a - c) / (b + slopeS)); Q = Math.max(0.01, a - b * P); }
+  return { P: P, Q: Q, Ed: b > 0 ? (b * P) / Q : 0, Es: slopeS > 0 ? (slopeS * P) / Q : 0 };
+}
+
+/* --------------------------------- 事件 -------------------------------- */
+/* 文本词典：中文为主，DR/A、DS/A、SH/A 为附录格式（Demand/Supply 乘数、Shock） */
+var DICT = {
+  demandUp: ['需求增长', '需求大增', '需求增加', '需求上升', '需求激增', '需求爆发', '需求回暖', '需求旺盛', '需求强劲', '需求扩大', '需求提升', '需求走强', '需求增加', '抢购', '囤货', '增持', '净流入', '买盘', '需求猛增', '需求增长', '采购增加', '订单增加'],
+  demandDown: ['需求疲软', '需求下降', '需求下滑', '需求萎缩', '需求减弱', '需求收缩', '需求走弱', '需求低迷', '需求放缓', '抛售', '减持', '净流出', '卖盘', '需求不振', '消费降级', '订单减少'],
+  supplyUp: ['供应增加', '供给增加', '产量增加', '增产', '扩产', '供给过剩', '供应过剩', '产能释放', '供应宽松', '供给宽松', '库存增加', '累库', '库存高企', '出口增加', '新增产能'],
+  supplyDown: ['供应减少', '供给减少', '减产', '限产', '停产', '供应中断', '供给中断', '供应紧张', '供给紧张', '短缺', '缺口', '去库', '库存下降', '库存低位', '事故', '罢工', '限运', '断供', '禁运', '出口限制', '停产检修'],
+  costUp: ['成本上升', '成本上涨', '涨价', '提价', '运费上涨', '原材料上涨', '人工上涨', '成本推动', '输入型成本'],
+  costDown: ['成本下降', '成本降低', '降价', '跌价', '运费下降', '成本回落', '价格战', '促销', '打折', '补贴', '满减', '优惠券', '秒杀', '实付'],
+  supplyIdle: ['闲置产能', '产能利用率下降', '剩余产能', '库存充足', '供给弹性大'],
+  demandHabit: ['刚需', '刚性需求', '消费习惯', '必需', '粘性'],
+  substitution: ['替代', '替代品',
+    '地铁', '公交', '高铁', '网约车', '共享单车', '出租车', '步行', '电动车', '新能源车', '充电',
+    '米饭', '面条', '馒头', '外卖', '自己做', '食堂', '盒饭', '回家吃',
+    '牛肉', '猪肉', '鸡肉', '豆腐', '鸡蛋', '鱼',
+    '茶叶', '果汁', '可乐', '矿泉水', '白开水',
+    '租房', '宿舍', '合租', '二手', '拼多多', '淘宝', '直播间', '团购', '批发',
+    '电影', '短视频', '游戏', '线上', '免费',
+    '国产', '进口', '同类', '竞品'],
+  complements: ['配套', '互补',
+    '咖啡豆', '糖', '奶', '杯盖', '吸管', '纸杯', '停车费', '停车位', '保险', '油费', '充电桩', '配饰',
+    '配件', '配套设备', '打印机墨盒', '耗材', '餐具', '热水器', '行李箱', '防水袋', '手机', '耳机',
+    '书本', '教辅', '晚饭', '早餐', '食堂'],
+  luxury: ['奢侈品', '炫耀', '身份', '礼盒', '高端', '轻奢', '网红', '限定', '联名'],
+  necessity: ['刚需', '必需', '必需品', '主食', '日用', '日常', '必需品', '口粮', '牙膏', '牙刷', '洗发水', '沐浴'],
+  normalGood: ['正常商品', '正常品', '收入上升', '收入提高', '涨薪', '加薪', '消费升级'],
+  inferiorGood: ['低档品', '劣等品', '平价替代', '入门款', '廉价'],
+  inflation: ['通胀', '通货膨胀', 'CPI 上升', 'CPI上涨', '物价上涨', '物价飞涨', '货币贬值', '宽松', '降息', '量化宽松', 'QE', '印钞', '财政刺激', '放水'],
+  deflation: ['通缩', '通货紧缩', 'CPI 下降', 'CPI下降', '物价下降', '需求不足', '衰退', '加息', '紧缩', '缩表', '货币升值'],
+  finance: ['美元指数', '美债收益率', '实际利率', '避险', '地缘', '制裁', '战争', '冲突', '央行购金', '去美元化', '储备', 'ETF', '对冲', '风险偏好', '降息', '加息', '美联储', '流动性'],
+  futures: ['期货', '投机', '投机资金', '净多头', '空头回补', '挤仓', '逼仓', '看涨期权', '看跌期权', '多头'], 
+  quote: ['预计', '预测', '预估', '或将', '有望', '传闻', '据悉', '可能', '猜测', '传言'],
+  confirmed: ['确认', '宣布', '正式', '公布', '实施', '落地', '达成', '签署', '已暂停', '已停产', '已减产', '已生效']
+};
+
+function hitCount(text, list) {
+  var n = 0;
+  for (var i = 0; i < list.length; i++) {
+    var k = list[i];
+    if (k.length > 2 && /^[A-Za-z]+$/.test(k)) {
+      var re = new RegExp('(^|[^A-Za-z])' + k + '([^A-Za-z]|$)', 'g');
+      var m = text.match(re);
+      if (m) n += m.length;
+    } else if (text.indexOf(k) >= 0) {
+      /* 同一关键词只计 1 次，防止“需求增长”重复叠加 */
+      n += 1;
+    }
+  }
+  return n;
+}
+
+/* 品类识别：顺序无关，先算分再取最高 */
+var GOODS_KEYS = [
+  { id: 'gold', keys: ['黄金', '金价', 'gold', '央妈购金', '央行购金', '金条', '金币'] },
+  { id: 'brent', keys: ['原油', '布伦特', '油价', 'brent', '石油', 'OPEC', '欧佩克', 'WTI', '汽油', '柴油', '油价'] },
+  { id: 'gas', keys: ['天然气', 'Henry Hub', 'LNG', '气价', '燃气', '页岩气'] }
+];
+function detectCommodityByText(text) {
+  var best = null, bestScore = 0;
+  for (var i = 0; i < GOODS_KEYS.length; i++) {
+    var g = GOODS_KEYS[i], sc = 0;
+    for (var j = 0; j < g.keys.length; j++) if (text.indexOf(g.keys[j]) >= 0) sc += 1;
+    if (sc > bestScore) { best = g.id; bestScore = sc; }
+  }
+  return best;
+}
+
+/* ---------------------------- 3. 特殊商品算法 ---------------------------- */
+function anchorOf(cid) {
+  var r = REF_SERIES[cid];
+  if (!r) return null;
+  var y = r.years[r.years.length - 1];
+  var i = r.years.length - 1;
+  var v = r.src[i] != null && isFinite(r.src[i]) ? r.src[i] : r.alt[i];
+  return { year: y, value: v, prev: r.src[i - 1] != null ? r.src[i - 1] : r.alt[i - 1], alt: r.alt[i], src: r.src[i], kind: v === r.src[i] ? 'source' : 'alt' };
+}
+
+/* ---- 3.1 黄金 ----
+ * 核心事实：黄金没有“生产成本—供给弹性”意义上的常规供给，库存即流量；
+ * 价格由“货币属性/实际利率”与“金融投机”共同决定，因此拆成 4 路：
+ *   ① 实际利率 r = i_nominal − π（机会成本，负相关）
+ *   ② 美元指数 DXY（负相关）
+ *   ③ 风险偏好 / 地缘（正相关）
+ *   ④ 央行购金 / 去美元化（结构性慢变量，正相关）
+ *   ⑤ 投机因子（期货净多头/空头回补，短周期放大）
+ */
+function goldModel(ev, st, dtDays) {
+  var anc = anchorOf('gold');
+  var P = st.price;
+  var rates = st.rates, inflState = st.infl;
+  /* 兼容两种入参：{ core } 或 { US_core } */
+  var nomR = Number(rates.US != null ? rates.US : rates.r);
+  var coreInf = Number(inflState.US_core != null ? inflState.US_core : (inflState.core != null ? inflState.core : NaN));
+  if (!isFinite(coreInf)) coreInf = nomR - 1.5;
+  var real = nomR - coreInf;                            // 美国实际利率（%）
+  var dxy = st.dxy;
+  /* 汇率：金价(美元) → 人民币克价 仅作展示口径 */
+  var cnyGram = P * rates.FX / 31.1035;
+
+  var dRate = -(real - 1.5) * 0.35 + sat(ev.Im, 3) * 0.012;
+  var dDxy = -(dxy - 100) / 100 * 1.4;
+  var dRisk = sat(ev.Ge, 4) * 0.012 + sat(ev.Fs, 4) * 0.010;
+  var dCb = sat(ev.Cb, 3) * 0.014 + sat(ev.Dr, 3) * 0.010;
+  var dSpec = sat(ev.Fs, 4) * 0.006;
+
+  var expYoy = dRate + dDxy + dRisk + dCb + dSpec;
+  expYoy = sat(expYoy, 0.9);                          // 一年涨跌上限 ±90%
+  var target = P * (1 + expYoy);
+
+  /* 相对年均价的“估值均值回归”（弱，因为 2024 后金价系统性上移） */
+  var rel = P / anc.value;
+  var zscore = (rel - 1) / 0.25;
+  var meanRev = -sat(zscore, 0.6) * 0.006;
+
+  /* 预测锚参照：HistorySaid 全年预估 */
+  var forecastGap = anc.alt ? (anc.alt / P - 1) : 0;
+
+  var drivers = [
+    { k: '实际利率 r=i−π', v: -(real - 1.5) * 0.35, note: real < 0 ? '负实际利率=持金机会成本为负' : (real < 1 ? '低实际利率' : '实际利率偏高') },
+    { k: '美元指数', v: dDxy, note: 'DXY ' + dxy.toFixed(2) },
+    { k: '风险/地缘', v: dRisk, note: '风险偏好与避险需求' },
+    { k: '结构性需求', v: dCb, note: '央行购金/去美元化，慢变量' },
+    { k: '投机因子', v: dSpec, note: '期货持仓/流动性' },
+    { k: '均值回归', v: meanRev, note: 'P/锚 = ' + rel.toFixed(2) }
+  ];
+  return {
+    target: target,
+    drivers: drivers,
+    refAnchor: anc.value,
+    rel: rel,
+    z: zscore,
+    forecastGap: forecastGap,
+    extra: '实际利率 ' + real.toFixed(2) + '%，人民币金价 ' + fnum(st.goldCNYgram * 0.001 * 1000, 2) + ' 元/克',
+    kappa: 0.018
+  };
+}
+
+/* ---- 3.2 原油 ----
+ * 短期供给几乎完全无弹性（产能投资周期 3–5 年），于是：
+ *   短期价格 ≈ 供给冲击的函数；需求冲击作用更慢。
+ * 把 OPEC 闲置产能视为“供给弹性 d”的调节阀：
+ *   闲置产能高 → d 大 → 同样冲击价格变化小（2020 年价格战 → 极端下行）。
+ *   闲置产能低 → d≈0   → 供给中断 → 价格尖峰（2022 年）。
+ */
+function oilModel(ev, st, dtDays) {
+  var anc = anchorOf('brent');
+  var P = st.price;
+  var spare = st.spare;                     // 闲置产能（百万桶/日）
+  var idx = st.inst && st.inst.oilActivity != null ? st.inst.oilActivity : 1;
+  var dEff = 0.10 + 0.35 * Math.min(1, spare / 4);     // 供给弹性（闲置产能是“调节阀”）
+  /* 单位统一为“事件强度级”：1 级 ≈ 一次中等供给扰动（约 1%–2% 供需缺口） */
+  var dFlow = clamp(ev.Ss + 0.15 * ev.Sh + 0.08 * ev.Dr, -12, 12);   // 净供给流量冲击（级）
+
+  var shocks = [
+    { k: '供给冲击', v: sat(dFlow, 12) * 6.5, note: '净供给冲击 ' + dFlow.toFixed(1) + ' 级（中断/减产为正，增产为负）' },
+    { k: '闲置产能', v: (4 - spare) * 3.6, note: 'OPEC 闲置 ' + spare.toFixed(1) + ' 百万桶/日，越低越紧张' },
+    { k: '资金/投机', v: sat(ev.Fs, 4) * 9, note: '期货资金与波动放大' },
+    { k: '宏观/通胀', v: -sat(ev.Im, 3) * 4 + sat(ev.Dr, 3) * 5, note: '输入型通胀压制需求 + 需求侧' }
+  ];
+  var e = sum(shocks.map(function (s) { return s.v; })) / 100;   // 百分比
+  var trend = anc.value > 0 && anc.prev > 0 ? (anc.value / anc.prev - 1) : 0;   // 年度趋势
+  var target = P * Math.exp(e + 0.15 * trend);
+
+  /* 极端情景：供给中断且无闲置产能 → 价格上冲；需求塌陷+库存高企 → 下冲 */
+  var extreme = null;
+  if (ev.Ss >= 5 && spare < 1.2) extreme = { name: '供给硬缺口（无缓冲产能）', dir: +1, amp: Math.min(0.9, ev.Ss * 0.08) };
+  if (ev.Dr <= -5 && ev.Ss >= 3) extreme = { name: '需求塌陷 + 高库存', dir: -1, amp: Math.min(0.75, Math.abs(ev.Dr) * 0.06) };
+  if (extreme) target = target * (1 + extreme.dir * extreme.amp);
+
+  return {
+    target: target, drivers: shocks, kappa: 0.05,
+    refAnchor: anc.value, rel: P / anc.value, dEff: dEff, spare: spare, flow: dFlow,
+    extreme: extreme,
+    extra: '短期供给弹性≈' + dEff.toFixed(2) + '，闲置产能 ' + spare.toFixed(1) + ' 百万桶/日' + (idx < 1 ? '，活动指数收缩' : '')
+  };
+}
+
+/* ---- 3.3 天然气 ----
+ * 与原油相反：难储运 → 库存（Storage）就是“供给”；
+ * 需求端高度季节性与天气驱动，供给端弹性取决于“钻机/产能”，
+ * 因此用 库存偏离 + 季节强度 + 异常事件 三路，且带冬季尖峰非线性。
+ */
+function gasModel(ev, st, dtDays) {
+  var anc = anchorOf('gas');
+  var P = st.price;
+  var sr = st.storageRatio;              // 库存水平相对正常值
+  var mon = st.now.getMonth() + 1;
+  var winter = (mon === 11 || mon === 12 || mon <= 2) ? 1 : (mon === 3 || mon === 10 ? 0.5 : 0);
+  var summer = (mon >= 6 && mon <= 8) ? 1 : 0;
+
+  var shocks = [
+    { k: '库存偏离', v: -(sr - 1) * 170, note: '库存/正常值 = ' + (sr).toFixed(2) },
+    { k: '季节强度', v: winter * 2.2 + summer * 0.7 - (winter > 0 ? 0 : 0.8), note: '月份 ' + mon + (winter ? '（取暖季）' : (summer ? '（制冷季）' : '（过渡季）')) },
+    { k: '供给冲击', v: ev.Ss * 1.6, note: '产能/出口与检修' },
+    { k: '需求冲击', v: ev.Dr * 1.4 + ev.Ge * 0.6, note: '气温与发电取暖' },
+    { k: '资金/投机', v: sat(ev.Fs, 4) * 1.5, note: '期货波动放大' }
+  ];
+  var e = sum(shocks.map(function (s) { return s.v; })) / 100;
+  var target = P * Math.exp(e * 0.5);
+
+  var extreme = null;
+  if (sr < 0.82 && winter > 0) extreme = { name: '冬季低库存尖峰', dir: 1, amp: (0.82 - sr) / 0.82 * 1.6 };
+  if (sr > 1.15 && winter === 0) extreme = { name: '淡季高库存塌陷', dir: -1, amp: (sr - 1.15) * 1.1 };
+
+  return {
+    target: target, drivers: shocks, kappa: 0.06,
+    refAnchor: anc.value, rel: P / anc.value, extra: '库存比 ' + sr.toFixed(2) + '，季节强度 ' + winter.toFixed(1), extreme: extreme
+  };
+}
+
+/* ---- 3.4 日用品（需求-供给 + 议价/渠道） ----
+ * 你给的 6 件商品是典型“高标价、低实付”：
+ *   listPrice 是心理锚（厂商建议零售价），paid 是电商补贴+促销+平台议价后的市场成交价。
+ * 折扣率 δ = 1 − paid/list 揭示渠道议价力与促销强度；
+ * 日用品需求弹性大（可替代品多）→ 价格战会让实付价下探而标价不动。
+ */
+function dailyModel(ev, st, item) {
+  var list = item.list, paid = item.paid;
+  var disc = 1 - paid / list;
+  /* 实付价对“供给/需求冲击”的敏感度由弹性决定：日用品 |Ed|≈2.5，供给弹性≈1.2 */
+  var eBlock = ev.Dr * 1.0 + 0.6 * ev.Ss + 0.4 * ev.Sh + 0.5 * ev.Ge;
+  var discountMove = -eBlock * 0.9;                   // 需求旺→促销减少→折扣率下降
+  var targetDisc = clamp(disc + discountMove / 100, 0.02, 0.92);
+  var targetPaid = list * (1 - targetDisc);
+  /* 通胀/通缩对“标价”的棘轮效应：涨价容易降价难 */
+  var infl = st.infl.CN;
+  var targetList = list;
+  return {
+    target: targetPaid,
+    list, paid, disc,
+    drivers: [
+      { k: '需求冲击', v: ev.Dr * 1.0, note: '需求弹性 |Ed|≈2.5' },
+      { k: '供给冲击', v: 0.6 * ev.Ss + 0.4 * ev.Sh, note: '产能/库存' },
+      { k: '促销/渠道', v: discountMove, note: '折扣率 ' + (disc * 100).toFixed(1) + '%（标价' + list + '→实付' + paid + '）' },
+      { k: '价格棘轮', v: infl * 0.05, note: '标价对通胀的棘轮效应' }
+    ],
+    kappa: 0.08, refAnchor: paid,
+    extra: '标价/实付 = ' + (list / paid).toFixed(2) + ' 倍'
+  };
+}
+
+/* ---- 3.5 通用商品（手绘模式） ----
+ * 纯教科书式：把每个因素换算成“需求/供给曲线位移比例”，再用线性核结算。
+ *   P* = (a−c)/(b+d)，保持 P、Q 的水平，只让 a、c 平移。 */
+function genericModel(ev, st, spec) {
+  var aS = ev.Dr * 4, cS = (ev.Ss + 0.3 * ev.Sh) * 4;      // 曲线位移（%），需求右移/供给左移
+  var shiftP = (aS - cS) / 2;                               // 简化线性核：位移差的一半
+  var target = st.price * (1 + shiftP / 100) * Math.exp((ev.Fs + ev.Ge) / 300);
+  return {
+    target: target,
+    drivers: [
+      { k: '需求位移 ΔD', v: aS, note: '需求曲线右移为正' },
+      { k: '供给位移 ΔS', v: cS, note: '供给曲线右移为正（压价）' },
+      { k: '合成位移', v: shiftP, note: '(ΔD−ΔS)/2' },
+      { k: '金融/预期', v: ev.Fs + ev.Ge, note: '投机与预期' }
+    ],
+    kappa: 0.06, refAnchor: st.price, extra: '通用线性供需核', generic: true
+  };
+}
+
+/* ------------------------- 4. 情景与置信度 ------------------------- */
+function scenarioOf(ev) {
+  var em = Math.abs(ev.Dr) + Math.abs(ev.Ss) + Math.abs(ev.Sp);
+  var fin = Math.abs(ev.Fs) + Math.abs(ev.Ge);
+  if (em > 6 && fin < 2) return { name: '经济学出清', why: '实体冲击主导，价格与数量反向（需求↑→Q↑P↑；供给↑→Q↑P↓）' };
+  if (fin > 5) return { name: '价格偏离（泡沫/超调）', why: '金融-预期因子占优，价格短期偏离模型出清值，量价或同向' };
+  if (ev.Im !== 0 && Math.abs(ev.Im) > 2) return { name: '货币/通胀扰动', why: '名义价格整体平移，实际供需未变' };
+  return { name: '平稳出清', why: '冲击较小，市场围绕均衡点波动' };
+}
+
+/* 冲击体积的“证据折扣” */
+function eventDiscount(evt) {
+  var w = evt.weight == null ? 1 : evt.weight;
+  if (evt.src === 'manual') w *= 1.0;
+  if (evt.future) w *= 0.55;
+  if (evt.quote) w *= 0.5;
+  return clamp(w, 0, 2);
+}
+
+/* 半衰期（小时）→ 衰减 */
+function decayFactor(halfLifeH, ageDays) {
+  if (!halfLifeH || halfLifeH <= 0) return 1;
+  return Math.pow(0.5, (ageDays * 24) / halfLifeH);
+}
+
+/* 汇总成“综合冲击向量” */
+function composeShock(group, items, now, marketType) {
+  var acc = { Dr: 0, Ss: 0, Sh: 0, Sp: 0, Fs: 0, Ge: 0, Im: 0, Cb: 0 };
+  var n = 0, list = [];
+  for (var i = 0; i < items.length; i++) {
+    var it = items[i];
+    var age = Math.max(0, (now - it.ts) / 86400000);
+    var hl = group === 'commodity' ? 75 : 300;      // 小时
+    var d = decayFactor(hl, age);
+    if (d < 0.02) continue;
+    var w = eventDiscount(it) * d * it.trust;
+    acc.Dr += it.Dr * w; acc.Ss += it.Ss * w; acc.Sh += it.Sh * w;
+    acc.Sp += (it.Fs + it.Ge) * w; acc.Fs += it.Fs * w; acc.Ge += it.Ge * w;
+    acc.Im += it.Im * w; acc.Cb += (it.Cb || 0) * w;
+    n++; list.push({ ev: it, w: w, decay: d });
+  }
+  return { ev: acc, n: n, list: list };
+}
+
+/* 置信度：样本量 × 文本强度 × 数据新鲜度 */
+function confidenceOf(ev, n, extra) {
+  var base = 0.55 + Math.min(1, n / 6) * 0.3 + Math.min(1, Math.abs(ev.Dr) + Math.abs(ev.Ss)) / 20 * 0.1;
+  return clamp(base + (extra || 0), 0.2, 0.97);
+}
+
+/* ----------------------------- 5. 利率 / 通胀 ----------------------------- */
+function computeInflation(inp) {
+  var US = { r: num(inp.usRate, 4.5), core: num(inp.usCore, 3.0), cpi: num(inp.usCpi, 2.6) };
+  var CN = { r: num(inp.cnRate, 1.5), core: num(inp.cnCore, 0.7), cpi: num(inp.cnCpi, 0.3) };
+  var FX = num(inp.fx, 7.12);
+  var USreal = US.r - US.core;
+  var CNreal = CN.r - CN.core;
+  /* 通胀判定：货币增速/名义 vs 核心，混合规则
+   * 名义利率 − 核心通胀（即时）+ CPI 水平（惯性） */
+  function classify(o) {
+    var raw = o.r - o.cpi;
+    if (o.cpi >= 3.0 || o.core >= 2.8 && raw > 0) return { kind: 'inflation', label: '通胀', score: raw };
+    if (o.cpi >= 2.0) return { kind: 'mild', label: '温和上行', score: raw };
+    if (o.cpi <= 0.2) return { kind: 'deflation', label: '通缩', score: raw };
+    if (o.cpi < 1.2) return { kind: '低通胀', label: '低通胀/偏冷', score: raw };
+    return { kind: 'stable', label: '中性', score: raw };
+  }
+  var us = classify(US), cn = classify(CN);
+  var fxStress = Math.abs(FX - 7.0) / 7.0;  // 汇率偏离（简化的购买力平价带）
+  return {
+    US: US, CN: CN, USreal: USreal, CNreal: CNreal, FX: FX,
+    USkind: us, CNkind: cn,
+    fxStress: fxStress,
+    /* 输入型通胀：美国 CPI 通过汇率传导 */
+    importedCN: Math.max(0, (US.cpi - CN.cpi)) * (1 + fxStress),
+    /* 极端模式强度：负实际利率 + 高通胀 + 汇率偏离 */
+    extreme: clamp((Math.max(0, -USreal) / 3) + (Math.max(0, US.cpi - 3) / 3) + fxStress, 0, 2)
+  };
+}
+
+/* 对比指标 */
+var CMP = {
+  gold: function (infl) { return { label: 'Gold/Silver 比', value: 82.5 + infl.US.cpi * 2 - infl.USreal }; },
+  brent: function (infl) { return { label: '产油国财政盈亏平衡', value: 78 + infl.US.cpi * 3 }; },
+  gas: function (infl) { return { label: '原油等价比 (Brent/HH)', value: 69.14 / 3.63 }; },
+  daily: function (infl) { return { label: '标价/实付比', value: 1 }; }
+};
+
+/* ----------------------------- 6. 实时引擎 ----------------------------- */
+/* 有新闻驱动的“事实价格” + 由均值回归速度 kappa / 价格动量 / 外生冲击强度 sigma 决定的 ODE：
+ *   dP/P = [κ(lnTarget − lnP) + μ·momentum] dt + σ dW
+ * 用指数欧拉积分，保证在极端冲击下稳定；实时 tick 只改变“观测值”，不改变模型参数。 */
+function createEngine(opts) {
+  var eng = {
+    price: opts.price,
+    target: opts.price,
+    modelRef: opts.modelRef || opts.price,
+    kappa: opts.kappa || 0.04,
+    sigma: opts.sigma || 0.01,
+    momentum: 0,
+    hist: [],          // {t, p, v}
+    phase: 0,
+    seed: opts.seed || 20261031,
+    rnd: lcg(opts.seed || 20261031),
+    setPrice: function (p) { if (isFinite(p) && p > 0) { this.price = p; } },
+    step: function (dtDays, obsNoise) {
+      var noise = (this.rnd() * 2 - 1) * this.sigma * Math.sqrt(Math.max(dtDays, 1e-6));
+      var lt = Math.log(this.target), lp = Math.log(this.price);
+      var ret = this.kappa * (lt - lp) * dtDays + noise + (obsNoise || 0);
+      ret = clamp(ret, -0.12, 0.12);
+      this.price = this.price * Math.exp(ret);
+      this.momentum = this.momentum * Math.exp(-dtDays * 6) + ret;
+      this.phase += dtDays * 2 * Math.PI;
+    },
+    /* 实时 tick：产出一个新的“观测价”，并与模型值融合（观测噪声 vs 先验的卡尔曼式加权） */
+    tick: function (dtDays) {
+      var R_obs = 0.0025;                                   // 观测方差（tick 级）
+      var innovation = (this.rnd() * 2 - 1) * 0.0016 + this.momentum * 0.05;
+      var obs = this.target * Math.exp(innovation);
+      var prior = this.price;
+      var K = 0.35;
+      this.price = prior + K * (obs - prior);
+      this.step(0, 0);
+      return this.price;
+    }
+  };
+  return eng;
+}
+
+  G.CORE = {
+    clamp, lerp, sgn, avg, std, sum, num, pct, fnum, fmtMoney, toNumLoose, escHtml,
+    dateStr, timeStr, parseDateLoose, dayKeyOf, sat, lcg,
+    REF_SERIES, DAILY_GOODS, PRICE_BAND, DICT, hitCount, GOODS_KEYS, detectCommodityByText,
+    anchorOf, marketClear, goldModel, oilModel, gasModel, dailyModel, genericModel,
+    scenarioOf, eventDiscount, decayFactor, composeShock, confidenceOf, computeInflation, CMP,
+    createEngine
+  };
+  if (typeof module !== 'undefined' && module.exports) module.exports = G.CORE;
+})(typeof globalThis !== 'undefined' ? globalThis : window);
+</script>
+<script>﻿/* =========================================================================
+ * 供给-需求 教科书“曲线位移”核（手绘 & 通用商品共用）
+ * 采用可积分的 log-linear 供需：
+ *     D:  q_D = A − ED·p        (p, q 均为价格/数量的对数)
+ *     S:  q_S = B + ES·(p − τ)   (τ = 从价税/关税楔子)
+ *   均衡  η = (A − B + ES·τ)/(ES + ED)，ν = A − ED·η
+ *   → ΔlnQ / ΔlnP = −ED（需求价格弹性），方向恒满足：
+ *     需求曲线右移 → P↑ Q↑；供给曲线右移 → P↓ Q↑；成本↑ → P↑ Q↓
+ * 所有“非价格因素”都写成曲线位移（对数），价格因素则单独作为“沿曲线移动”。
+ * ========================================================================= */
+(function (G) {
+  'use strict';
+  var C = G.CORE;
+
+  var FIELDS = [
+    { id: 'dD', name: '需求整体（其它条件一定）', side: 'D', type: 'range', min: -50, max: 50 },
+    { id: 'sub', name: '替代品价格', side: 'D', type: 'range', min: -50, max: 50 },
+    { id: 'comp', name: '互补品价格', side: 'D', type: 'range', min: -50, max: 50 },
+    { id: 'nIncome', name: '正常商品·收入', side: 'D', type: 'range', min: -30, max: 30 },
+    { id: 'iIncome', name: '低档商品·收入', side: 'D', type: 'range', min: -30, max: 30 },
+    { id: 'taste', name: '偏好/潮流', side: 'D', type: 'range', min: -5, max: 5 },
+    { id: 'expect', name: '消费者预期', side: 'D', type: 'range', min: -5, max: 5 },
+    { id: 'advert', name: '广告/营销', side: 'D', type: 'range', min: -3, max: 3 },
+    { id: 'population', name: '人口/市场规模', side: 'D', type: 'range', min: -20, max: 20 },
+    { id: 'globalIncome', name: '全球宏观（顺周期）', side: 'D', type: 'range', min: -10, max: 10 },
+    { id: 'dS', name: '供给整体（其它条件一定）', side: 'S', type: 'range', min: -50, max: 50 },
+    { id: 'cost', name: '成本（原料/人工/运费）', side: 'S', type: 'range', min: -50, max: 50 },
+    { id: 'input', name: '生产要素价格', side: 'S', type: 'range', min: -30, max: 30 },
+    { id: 'capacity', name: '产能/生产规模', side: 'S', type: 'range', min: -50, max: 50 },
+    { id: 'tariff', name: '从价税/关税', side: 'S', type: 'range', min: -30, max: 50 },
+    { id: 'floor', name: '价格下限（保护价）', side: 'P', type: 'number' },
+    { id: 'ceiling', name: '价格上限（限价）', side: 'P', type: 'number' }
+  ];
+  var COST_PASSTHRU = 0.85;   // 成本变动向供给曲线位移的传导（接近完全成本推动）
+
+  function zero(o) {
+    var z = { P0: o.P0, Q0: o.Q0, ED: o.ED, ES: o.ES };
+    FIELDS.forEach(function (f) { z[f.id] = f.type === 'number' ? null : 0; });
+    delete z.P0; delete z.Q0; delete z.ED; delete z.ES;
+    return z;
+  }
+
+  function shiftOf(o) {
+    var ED = Math.max(0.12, Math.abs(o.ED == null ? 1.3 : o.ED));
+    var ES = Math.max(0.08, o.ES == null ? 0.9 : o.ES);
+    var g = function (k) { return (o[k] || 0) / 100; };        // 全部换算为对数位移
+    /* 收入：正常品与低档品互斥，谁有值用谁 */
+    var incD = (o.nIncome || 0) !== 0 ? g('nIncome') : -(g('iIncome'));
+    var A = g('dD') + g('sub') + g('population') + g('globalIncome') + incD
+      + (o.taste || 0) * 0.02 + (o.expect || 0) * 0.015 + (o.advert || 0) * 0.03
+      - g('comp');
+    var B = g('dS') + g('capacity')
+      - g('cost') * COST_PASSTHRU - g('input') * COST_PASSTHRU;
+    var tau = (o.tariff || 0) / 100;
+    var floorLog = o.floor != null && isFinite(o.floor) ? Math.log(1 + o.floor / 100) : null;
+    var ceilLog = o.ceiling != null && isFinite(o.ceiling) ? Math.log(1 + o.ceiling / 100) : null;
+    return { A: A, B: B, tau: tau, ED: ED, ES: ES, floorLog: floorLog, ceilLog: ceilLog };
+  }
+
+  /* 求解；P0/Q0 仅用于把对数结果映射回“指数”展示（P0=Q0=100 时为标准图） */
+  function solveSupplyDemand(optsIn) {
+    var opt = Object.assign({ P0: 100, Q0: 100 }, optsIn || {});
+    var s = shiftOf(opt);
+    var ED = s.ED, ES = s.ES;
+    function solveWith(A, B, tau) {
+      var eta = (A - B + ES * tau) / (ES + ED);
+      var nu = A - ED * eta;
+      return { eta: eta, nu: nu };
+    }
+    /* 原态：无任何位移 */
+    var base = solveWith(0, 0, 0);
+    var fin = solveWith(s.A, s.B, s.tau);
+    var eta = fin.eta, nu = fin.nu;
+    var binding = '';
+    var wedge = s.tau;
+
+    /* 价格下限：行政价格高于均衡价 → 供给增加、需求减少 → 过剩 */
+    if (s.floorLog != null && s.floorLog > fin.eta) {
+      eta = s.floorLog; binding = '价格下限'; wedge = 0;
+      var qD = s.A - ED * eta, qS = s.B + ES * eta;
+      nu = Math.min(qD, qS);
+      return pack({ eta: eta, nu: nu, qD: qD, qS: qS, A: s.A, B: s.B, ED: ED, ES: ES, wedge: wedge, binding: binding, base: base, o: opt });
+    }
+    /* 价格上限：行政价格低于均衡价 → 供给减少、需求增加 → 短缺 */
+    if (s.ceilLog != null && s.ceilLog < fin.eta) {
+      eta = s.ceilLog; binding = '价格上限'; wedge = 0;
+      var qD2 = s.A - ED * eta, qS2 = s.B + ES * eta;
+      nu = Math.min(qD2, qS2);
+      return pack({ eta: eta, nu: nu, qD: qD2, qS: qS2, A: s.A, B: s.B, ED: ED, ES: ES, wedge: wedge, binding: binding, base: base, o: opt });
+    }
+    return pack({ eta: eta, nu: nu, qD: s.A - ED * eta, qS: s.B + ES * (eta - wedge), A: s.A, B: s.B, ED: ED, ES: ES, wedge: wedge, binding: binding, base: base, o: opt });
+  }
+
+  function pack(r) {
+    var opt = r.o, P0 = opt.P0, Q0 = opt.Q0;
+    var pricePct = (Math.exp(r.eta) - 1) * 100;
+    var qPct = (Math.exp(r.nu) - 1) * 100;
+    return {
+      eta: r.eta, nu: r.nu, A: r.A, B: r.B, ED: r.ED, ES: r.ES, wedge: r.wedge, binding: r.binding,
+      base: r.base,
+      pricePct: pricePct, qtyPct: qPct,
+      priceNow: P0 * Math.exp(r.eta), qtyNow: Q0 * Math.exp(r.nu),
+      priceChangePct: pricePct, qtyChangePct: qPct,
+      P0: P0, Q0: Q0,
+      qD: Math.exp(r.qD), qS: Math.exp(r.qS),
+      excess: r.qS - r.qD
+    };
+  }
+
+  /* 单个因素的“影响量”：数值微分 dP、dQ（个百分点） */
+  function marginal(opt, field, delta) {
+    var a = solveSupplyDemand(opt);
+    var o2 = Object.assign({}, opt); o2[field] = (o2[field] || 0) + delta;
+    var bb = solveSupplyDemand(o2);
+    return { dP: bb.pricePct - a.pricePct, dQ: bb.qtyPct - a.qtyPct };
+  }
+
+  G.SD = { solveSupplyDemand: solveSupplyDemand, FIELDS: FIELDS, marginal: marginal, shiftOf: shiftOf, zero: zero, COST_PASSTHRU: COST_PASSTHRU };
+})(typeof globalThis !== 'undefined' ? globalThis : window);
+</script>
+<script>﻿/* =========================================================================
+ * TXT 解码器：UTF-8 / GBK(GB18030) / UTF-16LE / UTF-16BE(BOM) / Big5(尽力)
+ * + 多格式事件解析：CSV / TSV / 竖线 / 表格(空格对齐) / JSON / 自由新闻体
+ *
+ * 统一事件模型：
+ * {id, date, ts, commodity, text, Dr, Ss, Sh, Sp, Fs, Ge, Im, Cb,
+ *  weight, quote, future, src, trust, tags}
+ *   Dr 需求冲击   Ss 供给冲击   Sh 库存冲击   Sp 价格冲击(直接)
+ *   Fs 金融/投机  Ge 地缘/预期  Im 货币/通胀  Cb 央行购金(黄金专用)
+ *
+ * 快捷键（任意位置的文本中可用）：DR+2 / DS-1.5 / SH+1 / SP+3 / CB+2 / GE+1
+ * 不写数值时，按关键词 + 数量级词（万/亿/%）自动估计方向与强度。
+ *
+ * 变量命名约定（踩过的坑）：模块内一律使用 input / colMap / rowCells / defs /
+ * impact 等专名，避免与 text、map、item、events 这类常见名互相遮蔽。
+ * ========================================================================= */
+(function (G) {
+  'use strict';
+  var C = G.CORE;
+  var CH = ['Dr', 'Ss', 'Sh', 'Sp', 'Fs', 'Ge', 'Im', 'Cb'];
+
+  /* ------------------------- 1. 字节 → 文本 ------------------------- */
+  function decodeBuffer(buf) {
+    var u8 = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+    if (u8.length >= 3 && u8[0] === 0xEF && u8[1] === 0xBB && u8[2] === 0xBF) {
+      return { text: new TextDecoder('utf-8').decode(u8.subarray(3)), encoding: 'UTF-8 (BOM)' };
+    }
+    if (u8.length >= 2 && u8[0] === 0xFF && u8[1] === 0xFE) {
+      return { text: new TextDecoder('utf-16le').decode(u8.subarray(2)), encoding: 'UTF-16LE' };
+    }
+    if (u8.length >= 2 && u8[0] === 0xFE && u8[1] === 0xFF) {
+      try { return { text: new TextDecoder('utf-16be').decode(u8.subarray(2)), encoding: 'UTF-16BE' }; } catch (e0) { }
+    }
+    try {
+      return { text: new TextDecoder('utf-8', { fatal: true }).decode(u8), encoding: 'UTF-8' };
+    } catch (e1) { }
+    var order = ['gb18030', 'gbk', 'big5', 'shift_jis'];
+    for (var enc = 0; enc < order.length; enc++) {
+      try { return { text: new TextDecoder(order[enc]).decode(u8), encoding: order[enc].toUpperCase() }; } catch (e2) { }
+    }
+    return { text: new TextDecoder('utf-8').decode(u8), encoding: 'UTF-8(含替换字符)' };
+  }
+
+  /* ------------------------- 2. 列定位 ------------------------- */
+  var COL_KEYS = {
+    date: ['日期', '时间', 'date', '公布日', '发布日', '交易日期', '日期时间', '发布时间'],
+    commodity: ['品种', '商品', '标的', 'commodity', '品类', '资产', 'symbol', '代码'],
+    text: ['事件', '新闻', '内容', '标题', '摘要', 'text', 'headline', '描述', '说明', 'news', 'event', '详情', '情报', '新闻内容', '新闻标题', '报道', '原文', '正文', '资讯'],
+    Dr: ['dr', '需求', '需求冲击', 'demand', '需求变动', 'demand_shift'],
+    Ss: ['ds', '供给', '供给冲击', '供应', 'supply', '供给变动', 'supply_shift'],
+    Sh: ['sh', '库存', '库存冲击', 'inventory', 'stock'],
+    Fs: ['fs', '金融', '投机', '资金', 'finance', 'spec'],
+    Ge: ['ge', '地缘', '预期', 'geo', '风险', 'risk'],
+    Im: ['im', '货币', '通胀', 'inflation', 'monetary'],
+    Cb: ['cb', '央行购金', '购金', '央行'],
+    Sp: ['sp', '价格冲击', '价格变动', 'price'],
+    w: ['权重', '影响', 'weight', '强度', 'impact']
+  };
+  function normKey(v) { return String(v == null ? '' : v).trim().toLowerCase().replace(/[\s_\-（）()【】]/g, ''); }
+
+  function mapHeader(head) {
+    var out = {}, names = {};
+    for (var hi = 0; hi < head.length; hi++) {
+      var hk = normKey(head[hi]);
+      if (!hk) continue;
+      for (var field in COL_KEYS) {
+        if (out[field] != null) continue;
+        var cands = COL_KEYS[field];
+        for (var ci = 0; ci < cands.length; ci++) {
+          var ck = normKey(cands[ci]);
+          if (hk === ck || (ck.length > 1 && hk.indexOf(ck) === 0)) { out[field] = hi; names[field] = String(head[hi]).trim(); break; }
+        }
+      }
+    }
+    return { map: out, names: names };
+  }
+
+  /* ------------------------- 3. 分隔符 ------------------------- */
+  function guessDelimiter(line) {
+    var cands = [',', '\t', '|', '｜', ';', '，'];
+    var best = null, bestN = 0;
+    for (var di = 0; di < cands.length; di++) {
+      var n = line.split(cands[di]).length - 1;
+      if (n > bestN) { bestN = n; best = cands[di]; }
+    }
+    return bestN >= 1 ? best : null;
+  }
+  function splitLine(line, delim) {
+    if (!delim) return line.split(/\s{2,}|\t/);
+    var out = [], cur = '', inQ = false;
+    for (var si = 0; si < line.length; si++) {
+      var ch = line[si];
+      if (inQ) {
+        if (ch === '"') { if (line[si + 1] === '"') { cur += '"'; si++; } else inQ = false; }
+        else cur += ch;
+      } else if (ch === '"') inQ = true;
+      else if (ch === delim) { out.push(cur); cur = ''; }
+      else cur += ch;
+    }
+    out.push(cur);
+    return out.map(function (v) { return String(v).trim(); });
+  }
+
+  /* ------------------------- 4. 文本 → 冲击 ------------------------- */
+  var UPW = /(增长|增加|上升|提高|上涨|扩大|激增|大增|走高|上扬|攀升|宽松|充裕|过剩|加强|回暖|旺盛|强劲|飙升|暴增|翻倍|创纪录|新高)/;
+  var DOWNW = /(下降|减少|下滑|降低|下跌|萎缩|回落|收窄|跌|减半|偏紧|短缺|紧张|中断|停产|减产|去库|崩塌|崩盘|跳水|腰斩|新低|疲软|低迷)/;
+  var MAG = /(暴|大幅|创纪录|史上|首次|激增|崩|腰斩|翻倍|极端|严重|骤)/;
+  /* 价格类方向词：金价上涨 / 油价跳涨 / 气价回落 也算方向信号 */
+  var PRICEUP = /(金价|油价|气价|金市|原油价格|天然气价格)\s*(上涨|跳涨|大涨|飙升|走高|冲高|反弹|创新高|上行)/;
+  var PRICEDN = /(金价|油价|气价|金市|原油价格|天然气价格)\s*(下跌|回落|大跌|走低|跳水|承压|下挫|创新低|下行|跌破)/;
+  var RISKW = /(地缘|制裁|战争|冲突|袭击|封锁|禁运)/;
+
+  /* 关键词附近找“x%” */
+  function nearbyPct(str, kw) {
+    var idx = str.indexOf(kw);
+    if (idx < 0) return NaN;
+    var seg = str.slice(Math.max(0, idx - 16), idx + 28);
+    var mm = seg.match(/(\d+(?:\.\d+)?)\s*(万|亿|千)?\s*(%|个百分点)/);
+    if (!mm) return NaN;
+    var val = parseFloat(mm[1]);
+    if (/万/.test(mm[2] || '')) val = val * 100;
+    if (/亿/.test(mm[2] || '')) val = val * 10000;
+    var pos = seg.indexOf(mm[0]);
+    var after = seg.slice(pos + mm[0].length, pos + mm[0].length + 8);
+    if (DOWNW.test(after)) val = -val;
+    return val;
+  }
+
+  function extractImpact(str) {
+    var body = String(str || '');
+    var impact = { Dr: 0, Ss: 0, Sh: 0, Sp: 0, Fs: 0, Ge: 0, Im: 0, Cb: 0, tags: [] };
+
+    /* ① 显式快捷键 */
+    var re = /(?:^|[\s,，;；|（(])(DR|DS|SH|SP|CB|FS|GE|IM)\s*([+\-]?\d+(?:\.\d+)?)/gi, mt;
+    while ((mt = re.exec(body)) !== null) {
+      var key = mt[1].toUpperCase(), val = parseFloat(mt[2]);
+      if (key === 'DR') impact.Dr += val;
+      else if (key === 'DS') impact.Ss += val;
+      else if (key === 'SH') impact.Sh += val;
+      else if (key === 'SP') impact.Sp += val;
+      else if (key === 'CB') impact.Cb += val;
+      else if (key === 'FS') impact.Fs += val;
+      else if (key === 'GE') impact.Ge += val;
+      else if (key === 'IM') impact.Im += val;
+      impact.tags.push(key + val);
+    }
+    var usedShortcut = impact.tags.length > 0;
+
+    /* ② 关键词族 */
+    function hits(list) {
+      var n = 0, found = [];
+      for (var hi2 = 0; hi2 < list.length; hi2++) if (body.indexOf(list[hi2]) >= 0) { n++; found.push(list[hi2]); }
+      return { n: n, found: found };
+    }
+    var dUp = hits(C.DICT.demandUp), dDown = hits(C.DICT.demandDown);
+    var sUp = hits(C.DICT.supplyUp), sDown = hits(C.DICT.supplyDown);
+    var cUp = hits(C.DICT.costUp), cDown = hits(C.DICT.costDown);
+    var iUp = hits(C.DICT.inflation), iDown = hits(C.DICT.deflation);
+    var fIn = hits(C.DICT.finance), fut = hits(C.DICT.futures);
+
+    function magFor(found) {
+      for (var mi = 0; mi < found.length; mi++) {
+        var pv = nearbyPct(body, found[mi]);
+        if (isFinite(pv)) return Math.abs(pv) / 10;
+      }
+      var base = 1 + 0.6 * Math.max(0, found.length - 1);
+      if (MAG.test(body)) base *= 1.8;
+      return base;
+    }
+
+    if (!usedShortcut) {
+      var dMag = magFor(dUp.found.concat(dDown.found));
+      impact.Dr += (dUp.n - dDown.n) * dMag;
+      var sMag = magFor(sDown.found.concat(sUp.found));
+      impact.Ss += (sDown.n - sUp.n) * sMag;                 // 供给增加 → 负冲击（压价）
+      var cMag = magFor(cUp.found.concat(cDown.found));
+      impact.Ss += -(cUp.n - cDown.n) * cMag * 0.6;
+      var iMag = magFor(iUp.found.concat(iDown.found));
+      impact.Im += (iUp.n - iDown.n) * Math.min(2, iMag);
+      impact.Fs += (fIn.n + fut.n) * 0.5;
+      /* 价格类词作为弱方向补充（幅度 0.6 级） */
+      if (PRICEUP.test(body) && !PRICEDN.test(body)) impact.Dr += 0.6;
+      if (PRICEDN.test(body) && !PRICEUP.test(body)) impact.Dr -= 0.6;
+      var dAll = dUp.found.concat(dDown.found), sAll = sUp.found.concat(sDown.found);
+      if (dAll.length || PRICEUP.test(body) || PRICEDN.test(body)) impact.tags.push(dUp.n > dDown.n || PRICEUP.test(body) ? '需求↑' : (dDown.n > dUp.n || PRICEDN.test(body) ? '需求↓' : '需求≈'));
+      if (sAll.length) impact.tags.push(sUp.n > sDown.n ? '供给↑' : (sDown.n > sUp.n ? '供给↓' : '供给≈'));
+    }
+    /* ③ 黄金专属（快捷键模式下不额外叠加，避免重复计数） */
+    if (!usedShortcut && /(央行|储备|去美元化)/.test(body) && /(购金|增持|储备|去美元化)/.test(body)) impact.Cb += 1.2;
+    /* ④ 地缘 */
+    if (!usedShortcut && RISKW.test(body)) impact.Ge += 1.2;
+    /* 避险类行情同样视为地缘溢价 */
+    if (!usedShortcut && !RISKW.test(body) && /避险/.test(body)) impact.Ge += 0.8;
+    /* ⑤ 直接价格变动 */
+    var pm = body.match(/(?:价格|油价|气价|金价)(?:上涨|上升|涨|提高|增加|下跌|下降|跌|回落)\s*(\d+(?:\.\d+)?)\s*%/);
+    if (pm) impact.Sp += parseFloat(pm[1]) * (/跌|下降|回落/.test(pm[0]) ? -1 : 1);
+    return impact;
+  }
+
+  /* ------------------------- 5. 行情品种识别 ------------------------- */
+  function mapCommodity(label, body) {
+    var l = String(label || '').toLowerCase();
+    if (l) {
+      if (/黄金|金价|gold|金条|金币/.test(l)) return 'gold';
+      if (/原油|石油|布伦特|brent|wti|opec|欧佩克|汽油|柴油|燃料/.test(l)) return 'brent';
+      if (/天然气|gas|lng|henry|页岩气|燃气/.test(l)) return 'gas';
+      if (/日用|日化|洗护|沐浴|洗发|牙膏|牙刷|快消|生活用品|消费/.test(l)) return 'daily';
+    }
+    var bd = String(body || '').toLowerCase(), best = null, bestN = 0;
+    var groups = [
+      ['gold', ['黄金', '金价', '央行购金', '购金', '盎司']],
+      ['brent', ['原油', '油价', '布伦特', '石油', 'opec', '欧佩克', 'wti', '桶']],
+      ['gas', ['天然气', '气价', 'lng', 'henry hub', '燃气', 'mmbtu', '页岩气']]
+    ];
+    for (var gi = 0; gi < groups.length; gi++) {
+      var cnt = 0;
+      for (var ki = 0; ki < groups[gi][1].length; ki++) if (bd.indexOf(groups[gi][1][ki]) >= 0) cnt++;
+      if (cnt > bestN) { bestN = cnt; best = groups[gi][0]; }
+    }
+    return best || 'custom';
+  }
+
+  /* ------------------------- 6. 单行解析 ------------------------- */
+  function parseRow(rowCells, colMap, lineNo, defs) {
+    colMap = colMap || {};
+    function pick(f) { return colMap[f] != null && rowCells[colMap[f]] != null ? String(rowCells[colMap[f]]).trim() : ''; }
+    var txt = pick('text');
+    if (!txt && colMap.text == null) {
+      txt = rowCells.filter(function (cv, ci) { return ci !== colMap.date && ci !== colMap.commodity && cv; }).join('；');
+    }
+    if (!txt) return { error: '空文本' };
+
+    var dt = defs.now || new Date();
+    var dv = pick('date');
+    if (dv) { var pd = C.parseDateLoose(dv); if (pd) dt = pd; }
+    if (dt > (defs.now || new Date())) dt = defs.now || new Date();
+
+    var rawLabel = pick('commodity');
+    var cid = mapCommodity(rawLabel, txt);
+    var impact = extractImpact(txt + (rawLabel ? '；' + rawLabel : ''));
+
+    CH.forEach(function (ch) {
+      if (colMap[ch] != null) {
+        var nv = C.toNumLoose(pick(ch));
+        if (isFinite(nv)) impact[ch] = nv;
+      }
+    });
+    var wRaw = colMap.w != null ? C.toNumLoose(pick('w')) : NaN;
+    var isFuture = /(预计|预测|预估|或将|有望|如果|若)/.test(txt);
+    var isQuote = /(传言|传闻|据悉|据说|据传|未证实|市场猜测)/.test(txt);
+
+    var evt = {
+      id: 'e' + lineNo + '_' + Math.random().toString(36).slice(2, 7),
+      date: C.dateStr(dt), ts: dt.getTime(),
+      commodity: cid, label: rawLabel || '', text: txt.slice(0, 260),
+      Dr: impact.Dr, Ss: impact.Ss, Sh: impact.Sh, Sp: impact.Sp,
+      Fs: impact.Fs, Ge: impact.Ge, Im: impact.Im, Cb: impact.Cb,
+      weight: isFinite(wRaw) ? wRaw : 1, quote: isQuote, future: isFuture,
+      src: defs.src || 'txt', trust: defs.trust == null ? 0.9 : defs.trust,
+      tags: impact.tags.slice(), lineNo: lineNo
+    };
+    var mag = 0;
+    CH.forEach(function (ch) { mag += Math.abs(evt[ch]); });
+    evt.weak = mag < 0.15;
+    return evt;
+  }
+
+  /* ------------------------- 7. 去重与收尾 ------------------------- */
+  function finish(format, rawText, rawEvents, warnList) {
+    var seen = {}, out = [];
+    rawEvents.forEach(function (ev) {
+      var key = ev.date + '|' + ev.commodity + '|' + ev.text.slice(0, 36);
+      if (seen[key]) return;
+      seen[key] = 1;
+      CH.forEach(function (ch) { ev[ch] = C.clamp(ev[ch], -12, 12); });
+      ev.weight = C.clamp(ev.weight, 0.1, 3);
+      out.push(ev);
+    });
+    out.sort(function (a, b) { return b.ts - a.ts; });
+    return { ok: out.length > 0, text: rawText, format: format, events: out, warnings: warnList };
+  }
+
+  /* ------------------------- 8. 主入口 ------------------------- */
+  function parseText(input, defaults) {
+    var defs = defaults || {};
+    if (!defs.now) defs.now = new Date();
+    var raw = String(input == null ? '' : input).replace(/\r\n?/g, '\n').replace(/^\uFEFF/, '');
+    var srcLines = raw.split('\n');
+    var rowList = [];
+    for (var li = 0; li < srcLines.length; li++) if (srcLines[li].trim()) rowList.push({ no: li + 1, s: srcLines[li] });
+    var warnList = [], collected = [], format = '未知';
+
+    /* --- JSON --- */
+    var trimmed = raw.trim();
+    if (trimmed[0] === '[' || trimmed[0] === '{') {
+      try {
+        var parsed = JSON.parse(trimmed);
+        var objList = Array.isArray(parsed) ? parsed : [parsed];
+        format = 'JSON';
+        for (var oi = 0; oi < objList.length; oi++) {
+          var ob = objList[oi];
+          var currentOb = ob;
+          if (!ob || typeof ob !== 'object') { warnList.push('第' + (oi + 1) + '条：不是对象，已跳过'); continue; }
+          var bodyVal = pickKey(ob, ['text', '事件', '新闻', '内容', '标题', 'headline', 'news', 'event']);
+          var dateVal = pickKey(ob, ['date', '日期', '时间']);
+          var comVal = pickKey(ob, ['commodity', '品种', '商品', '标的']);
+          var jr = parseRow([String(bodyVal == null ? '' : bodyVal), String(dateVal == null ? '' : dateVal), String(comVal == null ? '' : comVal)],
+            { text: 0, date: 1, commodity: 2 }, oi + 1, defs);
+          if (jr.error || jr.weak) { warnList.push('第' + (oi + 1) + '条：' + (jr.error || '无法判定方向')); continue; }
+          CH.forEach(function (ch) {
+            var fv = pickKey(currentOb, [ch]);
+            if (typeof fv === 'number') jr[ch] = fv;
+            else if (typeof fv === 'string' && fv.trim() !== '' && isFinite(Number(fv))) jr[ch] = Number(fv);
+          });
+          collected.push(jr);
+        }
+        return finish(format, raw, collected, warnList);
+      } catch (eJson) { warnList.push('JSON 解析失败，回退逐行解析：' + eJson.message); }
+    }
+
+    /* --- 表格类 --- */
+    var headerIdx = -1, colMap = null, delim = null;
+    for (var hi = 0; hi < Math.min(6, rowList.length); hi++) {
+      var guessDelim = guessDelimiter(rowList[hi].s);
+      var headCells = splitLine(rowList[hi].s, guessDelim);
+      var mh = mapHeader(headCells);
+      if (Object.keys(mh.map).length >= 2) { headerIdx = hi; colMap = mh.map; delim = guessDelim; break; }
+    }
+    if (headerIdx >= 0 && colMap.text == null && colMap.date == null) { headerIdx = -1; colMap = null; delim = null; }
+
+    if (headerIdx >= 0) {
+      format = delim === '\t' ? 'TSV' : (delim === ',' ? 'CSV' : (delim ? '分隔符[' + delim + ']' : '表格式'));
+      for (var ri = headerIdx + 1; ri < rowList.length; ri++) {
+        var rawLine = rowList[ri].s;
+        if (/^[\s\-=#*─—|+]+$/.test(rawLine)) continue;
+        var lineCells = splitLine(rawLine, delim);
+        /* 行内单元格多于表头时：保留前 N 列，其余空白单元格优先就近并入文本列
+         * （表格从网页复制时常见“多一个空格 → 空格列导致错位”） */
+        var headCols = 0;
+        for (var hc in colMap) if (hc !== 'w') headCols = Math.max(headCols, colMap[hc] + 1);
+        if (headCols > 0 && lineCells.length > headCols && colMap.text != null) {
+          var lastReal = -1;
+          for (var lr = 0; lr < lineCells.length; lr++) if (lineCells[lr] !== '') lastReal = lr;
+          if (lastReal < headCols) lineCells = lineCells.slice(0, headCols - 1).concat(lineCells.slice(headCols - 1).join(''));
+        }
+        if (lineCells.length < 2 && colMap.text != null) {
+          /* 只有一个非空单元格时：若含分隔符再拆一次，否则整行当文本 */
+          if (delim && rawLine.indexOf(delim) >= 0) lineCells = splitLine(rawLine, delim); else lineCells = [rawLine];
+        }
+        var er = parseRow(lineCells, colMap, rowList[ri].no, defs);
+        if (er.error) { warnList.push('第' + rowList[ri].no + '行：' + er.error); continue; }
+        if (er.weak) { warnList.push('第' + rowList[ri].no + '行：无方向（可写“需求大增”或 DR+2）'); continue; }
+        collected.push(er);
+      }
+      return finish(format, raw, collected, warnList);
+    }
+
+    /* --- 自由新闻体 --- */
+    format = '自由新闻体';
+    for (var fi = 0; fi < rowList.length; fi++) {
+      var sraw = rowList[fi].s.replace(/^[\s\-*•·#>#]+/, '').trim();
+      if (!sraw || /^(来源[:：]|注释|备注|说明)/.test(sraw)) continue;
+      var dtext = '', content = sraw, labelHint = '';
+      if (sraw.indexOf('|') >= 0 || sraw.indexOf('｜') >= 0) {
+        /* “黄金 | 2026-10-02 | 需求大增” */
+        var parts = sraw.split(/[|｜]/).map(function (v) { return v.trim(); }).filter(Boolean);
+        labelHint = parts[0] || '';
+        var dpart = '';
+        for (var pi = 1; pi < parts.length; pi++) if (/^\d{4}[-/.年]\d{1,2}/.test(parts[pi])) { dpart = parts[pi]; parts.splice(pi, 1); break; }
+        dtext = dpart;
+        content = [labelHint].concat(parts.slice(1)).join('，');
+      } else {
+        var dm = sraw.match(/^\s*(\d{4}[-/.年]\d{1,2}(?:[-/.月]\d{1,2})?)\s*[,:：\s]\s*(.+)$/);
+        if (dm) { dtext = dm[1]; content = dm[2]; }
+      }
+      var ef = parseRow([content, dtext, ''], { text: 0, date: 1 }, rowList[fi].no, defs);
+      if (ef.error || ef.weak) { warnList.push('第' + rowList[fi].no + '行：无法判定方向，已跳过'); continue; }
+      if (labelHint && !ef.label) ef.label = labelHint;
+      collected.push(ef);
+    }
+    return finish(format, raw, collected, warnList);
+  }
+
+  /* JSON 键名容错匹配（大小写、全半角、简繁不敏感） */
+  function pickKey(obj, cands) {
+    for (var ci = 0; ci < cands.length; ci++) {
+      var want = normKey(cands[ci]);
+      for (var okey in obj) if (Object.prototype.hasOwnProperty.call(obj, okey) && normKey(okey) === want) return obj[okey];
+    }
+    return '';
+  }
+
+  var Parser = { decodeBuffer: decodeBuffer, parseText: parseText, extractImpact: extractImpact, mapCommodity: mapCommodity, splitLine: splitLine };
+  G.TXTParser = Parser;
+  if (typeof module !== 'undefined' && module.exports) module.exports = Parser;
+})(typeof globalThis !== 'undefined' ? globalThis : window);
+</script>
+<script>﻿/* =========================================================================
+ * 内置新闻 / 价格事件库（示例库）
+ *
+ * 格式：日期,品种,事件,DR,DS,SH,权重   （CSV；也支持 TSV / 竖线 / 表格 / 自由新闻体）
+ *   DR 需求冲击  DS 供给冲击（正=供给增加）  SH 库存冲击（正=累库）
+ *   权重 1~2 表示该事件强度倍数；留空默认 1
+ * 只想写一句话也行：解析器会从“需求大/小、供给增/减、成本、地缘、通胀、中断”等
+ * 关键词 + 数字（万/亿/%）自动估计方向与强度。
+ * 想精确控制：在事件文字里写 DR+2 / DS-1.5 / SH+1 / SP+3 / CB+2（央行购金）。
+ * 说明：商品事件为按公开年度走势整理的“典型宏观事件”示例，用于演示算法；
+ *       2026 日用品标价/实付为实测数据。真实新闻请用“导入TXT”覆盖。
+ * ========================================================================= */
+(function (G) {
+  'use strict';
+
+  G.SEED_TXT = `日期,品种,事件,DR,DS,SH,权重
+2026-10-29,黄金,美国9月核心CPI 3.6% 高于预期，实际利率下行，美联储12月降息预期升温，金价再创新高,2.5,,,1.2
+2026-10-30,黄金,全球央行连续第20个季度净购金，前三季度累计约 750 吨，去美元化配置需求持续,,,2
+2026-10-28,黄金,地缘冲突升级，避险资金流入黄金ETF,GE+1.2
+2026-10-31,黄金,金价高位后获利了结，部分央行放缓购金步伐，金价小幅回落,-1.5,0,0,0.9
+2026-10-27,原油,OPEC+ 维持减产协议不变，且闲置产能降至 2.1 百万桶/日，供给弹性偏低,0,1.8,0,1.3
+2026-10-30,原油,全球制造业PMI连续三个月位于荣枯线下，原油需求前景转弱,-2.2,0,0,1.1
+2026-10-26,原油,美国商业原油库存意外增加 420 万桶，累库压制油价,0,0,1.6,1
+2026-10-24,原油,红海航运风险上升，运费成本上涨 15%，地缘溢价回归,0.5,1,0,1.1
+2026-10-25,天然气,飓风袭击墨西哥湾，部分液化出口设施停产，供应中断,0,3,0,1.4
+2026-10-22,天然气,美国天然气库存水平约为五年均值 0.95 倍，11月取暖季临近,0,0,1.5,1.2
+2026-10-31,日用品,平台“双11”预售开启，沐浴露洗发水满减叠加优惠券，实付价下探到标价的3折,0,1.5,0,1.2
+2026-10-29,日用品,化妆品原料表面活性剂价格上涨 8%，成本推动下日化产品提价,0,-1.6,0,1
+2026-10-30,日用品,电商大促叠加平台补贴，日化沐浴用品实付价进一步下探，渠道议价力增强,0,2,1.5,1.2
+2026-10-28,日用品,消费者转向平价替代品牌，洗发水需求向低价段集中，需求弹性放大,-1.5,0,0,1
+2026-10-26,日用品,某头部洗护品牌原材料供应紧张，洗发水供给受限，促销力度收敛,0,-2,-1,1.1
+2026-10-27,日用品,国庆后消费淡季来临，沐浴露需求走弱，商家打折清库,-2,0,1.5,1
+2026-10-31,黄金,高盛上调 2026 年末黄金目标价至 5000 美元/盎司，预计央行购金持续,,,,0.6
+
+2011-09-06,黄金,金价冲上 1921 美元历史高位后遭遇获利了结，欧债危机流动性紧张引发抛售,-3,0,0,1.1
+2011-01-05,原油,利比亚内战导致原油供应中断，布伦特原油突破 110 美元，供给紧张,0,-3.5,0,1.4
+2011-01-20,天然气,页岩气革命大规模增产，Henry Hub 供应过剩，价格跌至 2 美元附近,0,4,0,1.2
+
+2012-06-20,黄金,美联储推出第三轮量化宽松 QE3，货币宽松推动金价走高,,,1
+2012-03-01,原油,页岩油产量激增 + 欧债危机需求疲软，布伦特维持 110 美元高位后动能衰竭,-1,2,0,1
+
+2013-04-15,黄金,金价单日暴跌 9%，塞浦路斯抛售黄金传闻引发踩踏，ETF 净流出,0,,,1.4
+2013-11-25,原油,伊朗核协议达成，制裁部分解除，原油供给预期增加,0,1.5,0,1
+
+2014-11-27,原油,OPEC 沙特拒绝减产，宣布价格战，油价半年内腰斩，供给过剩,0,4.5,2,1.6
+
+2015-01-15,天然气,北美暖冬 + 页岩气高库存，天然气价格跌至 2.6 美元十年低位,0,2,2,1.2
+2015-06-09,原油,美国页岩油产量见顶但 OPEC 维持高产，原油库存高企压制油价,0,2,2,1.2
+
+2016-02-11,原油,OPEC 与俄罗斯首次达成冻产谈判，原油供给预期收紧,0,-1.5,0,1.1
+2016-02-01,黄金,全球股市动荡叠加负利率扩散，避险需求推升金价,2.5,0,0,1.3
+
+2017-01-01,原油,OPEC 减产生效，油价站稳 50 美元上方,0,-1.2,0,1.2
+2017-07-01,天然气,页岩气钻机数回升，天然气供给宽松，价格跌破 3 美元,0,1.5,0,1
+
+2018-10-03,原油,美国重启对伊朗制裁，原油供应紧张，布伦特冲上 86 美元，供给紧张,0,-2.8,0,1.4
+2018-05-01,黄金,美元指数走强叠加美债收益率上行，金价承压,0,,,1
+
+2019-09-14,原油,沙特阿美炼油设施遭无人机袭击，原油产量骤减 570 万桶/日，供应中断,0,-5,0,1.8
+2019-06-01,黄金,美联储转鸽，降息预期升温，金价突破 1400 美元,,,1.2
+
+2020-01-20,原油,新冠疫情引发全球航空停摆，原油需求崩盘，价格战爆发,-4.5,4,1.5,1.8
+2020-04-20,原油,WTI 5 月合约历史上首次收于负值，全球需求塌陷叠加储油空间耗尽,-5,2.5,2,2
+2020-08-06,黄金,金价首次站上 2000 美元，实际利率跌破 -1%，美元贬值,,,1.4
+2020-03-15,黄金,疫情恐慌引发流动性挤兑，黄金被抛售换现金，短期逆势下跌,-3,0,0,1.3
+
+2021-10-06,天然气,欧洲能源危机，LNG 抢购推升 Henry Hub 至 6 美元以上，供应紧张,3,-3,0,1.5
+2021-03-01,原油,疫后需求复苏 + OPEC 缓慢增产，油价突破 60 美元,2,-1,0,1.1
+
+2022-02-24,原油,俄乌冲突爆发，原油供应中断风险上升，布伦特突破 100 美元，地缘冲突,0,-3,0,2
+2022-08-01,天然气,北溪管道因涡轮机维修大幅减供，欧洲天然气价格创纪录，全球抢购 LNG 货源,4,-3.5,0,1.7
+2022-11-03,黄金,美联储连续加息 75bp，实际利率大幅上行，黄金承压,-1.5,0,0,1.2
+
+2023-03-01,原油,欧美银行业危机引发需求担忧，油价承压,-1.8,0,0,1.1
+2023-03-01,黄金,硅谷银行破产，避险需求大增，金价突破 2000 美元,2,0,0,1.3
+2023-11-01,天然气,暖冬叠加创纪录产量，天然气价格跌至 2.5 美元,0,2,1.5,1.1
+
+2024-04-01,黄金,全球央行购金创历史新高，地缘冲突不断，金价屡创新高,3,,1.5
+2024-06-01,原油,OPEC+ 宣布逐步增产，需求增长放缓，油价回落,0,1.5,0,1.1
+2024-01-15,天然气,美国 LNG 出口产能扩张，天然气价格触及四年来低位 2.2 美元,0,2,1.4,0.9
+
+2025-04-01,黄金,特朗普关税政策冲击美元信用，金价加速上行，去美元化,3,,1.3
+2025-06-01,黄金,美国债务上限担忧 + 降息周期开启，金价上破 3400 美元，央行购金,2.5,,1.2
+2025-03-01,原油,OPEC+ 意外宣布增产，供给宽松，油价跌破 65 美元,0,2.2,0,1.2
+2025-01-04,天然气,严寒天气推升取暖需求，天然气价格反弹至 3.6 美元,1.5,-1,0,1.1
+
+2026-01-05,黄金,开年避险情绪升温，央行购金持续推进，金价站上 4000 美元,2,,1.2
+2026-03-01,原油,OPEC+ 恢复增产，原油供需转向过剩，布伦特回落至 70 美元附近,0,2.5,1.5,1.1
+2026-06-15,天然气,美国 LNG 出口创纪录，但产量同步扩张，气价在 5 美元附近震荡,0,1,0,1
+2026-09-01,黄金,美联储重启降息周期，实际利率转负，金价加速上行,2.5,,1.2
+2012-04-01,天然气,暖冬后北美天然气库存高企，页岩气大幅增产，气价跌至 2 美元十年低位,0,3,2,1.2
+2013-04-01,天然气,寒潮推升取暖需求，美国天然气库存降至五年低位，气价反弹至 4 美元以上,2,-0.5,-1.5,1.3
+2014-01-20,天然气,极寒天气"极地涡旋"来袭，美国取暖需求暴增，Henry Hub 一度突破 6 美元,3,0,-1,1.6
+2016-03-01,天然气,暖冬叠加页岩气产量创新高，天然气库存过剩，价格跌破 2 美元,0,2.5,2,1.2
+2018-11-01,天然气,入冬需求旺盛且库存低于五年均值，天然气价格一度冲上 4.8 美元,2.5,0,-1.5,1.3
+2019-09-01,天然气,页岩气产量创纪录，天然气库存充裕，价格跌至 2.5 美元,0,2.2,1.5,1.1
+2020-08-01,天然气,疫情后工业需求疲软叠加高库存，天然气价格触及 1.8 美元低位,-1.5,1,1.2,1
+2026-10-15,天然气,美国气温高于常年的暖秋抑制取暖需求，气价回落,-2,0,0.6,1
+2026-10-31,原油,OPEC+ 会议决定 12 月继续小幅增产，供给宽松预期升温,0,1.5,0,1
+2026-10-31,天然气,冬季取暖需求预期走强，LNG 出口创新高，气价上行,2,-0.5,0,1`;
+
+  /* 2026 日用品：标价 / 实付（实测） */
+  G.GOODS_TXT = `日期,品种,事件
+2026-10-20,日用品,力士精油香氛沐浴乳幽莲魅肤720g 标价 42.9 元，实付 13 元
+2026-10-20,日用品,多芬白桃白茶香清爽美肤沐浴露720g 标价 47.9 元，实付 13.87 元
+2026-10-20,日用品,多芬白桃果香绵密沐浴泡泡400ml 标价 59.9 元，实付 13 元
+2026-10-20,日用品,欧莱雅精油润养润发乳700ml 标价 70 元，实付 19.83 元
+2026-10-20,日用品,欧莱雅透明质酸水润去屑洗发露700ml 标价 70 元，实付 19.82 元
+2026-10-20,日用品,狮王细齿洁晶彩牙刷2支特惠装 标价 14 元，实付 11.9 元
+`;
+})(typeof globalThis !== 'undefined' ? globalThis : window);
+</script>
+<script>/* =========================================================================
+ * 多格式示例 TXT（供“TXT 解码”测试；页面内可一键下载）
+ *  csv   —— 标准 CSV（带表头、可带 DR/DS 数值列）
+ *  table —— 空格对齐的表格（从 Excel 复制出来的那种）
+ *  news  —— 自由新闻体（只有日期 + 一句话），用于示范关键词自动识别
+ *  seed  —— 直接复用内置示例库
+ * ========================================================================= */
+(function (G) {
+  'use strict';
+
+  G.SAMPLES = {
+    csv: [
+      '日期,品种,事件,DR,DS,SH,权重',
+      '2026-10-31,黄金,中东局势升级叠加美联储降息预期，避险资金大幅流入黄金,2.5,,,1.3',
+      '2026-10-31,原油,OPEC+ 会议意外宣布推迟增产，闲置产能仅 2.1 百万桶/日,,-2,0,1.4',
+      '2026-10-30,天然气,美国暖秋天气抑制取暖需求，库存高于五年均值,-2,0,1.2,1',
+      '2026-10-30,日用品,"双11 预售满减叠加平台补贴，沐浴露实付价降至标价 3 折",,1.5,0,1.2',
+      '2026-10-29,黄金,全球央行连续第 20 个季度净购金，去美元化配置持续,,,1.2',
+      '2026-10-29,原油,全球制造业 PMI 连续三个月低于荣枯线，需求前景转弱,-2.2,0,0,1.1'
+    ].join('\r\n'),
+
+    table: [
+      '日期        品种      事件                                       需求    供给    权重',
+      '2026-10-31  黄金      美国 9 月核心 CPI 回落，实际利率下行        2.0            1.2',
+      '2026-10-31  原油      红海航运中断，运费上涨 15%                  0.5    1.0     1.1',
+      '2026-10-30  天然气    飓风袭击墨西哥湾液化出口设施                 0.0    3.0     1.4',
+      '2026-10-30  黄金      金价创新高后获利了结，金价回落              -1.5           0.9',
+      '2026-10-29  原油      美国商业原油库存意外增加 420 万桶            0.0    0.0     1.0'
+    ].join('\r\n'),
+
+    news: [
+      '2026-10-31 中东局势升级，避险资金流入黄金 ETF，金价创历史新高',
+      '2026-10-31 OPEC+ 意外宣布推迟增产计划，原油供给收紧，油价跳涨',
+      '2026-10-30 美国中西部暖秋天气持续，取暖需求低于往年，天然气价格回落',
+      '2026-10-30 平台双11预售启动，沐浴露洗发水满减叠加补贴，实付价大幅下探',
+      '2026-10-29 全球央行连续第 20 个季度净购金，去美元化配置需求持续',
+      '2026-10-29 全球制造业 PMI 连续三个月低于荣枯线，原油需求前景转弱，油价承压',
+      '2026-10-28 飓风袭击墨西哥湾，部分液化天然气出口设施停产，供应中断',
+      '2026-10-27 美国核心 CPI 高于预期，通胀预期升温 (IM+1.5)，美元走强',
+      '2026-10-26 一批新的优惠券上线，日化用品实付价再降，需求未见明显上升',
+      '2026-10-25 OPEC 闲置产能降至 2 百万桶/日，供给弹性偏低',
+      '2026-10-24 原油库存增加 300 万桶，累库压制油价 (SH+1)',
+      '2026-10-23 地缘冲突升级，避险需求激增，黄金走强 (GE+1.5)'
+    ].join('\r\n'),
+
+    seed: G.SEED_TXT
+  };
+})(typeof globalThis !== 'undefined' ? globalThis : window);
+</script>
+<script>/* =========================================================================
+ * 手绘模式引擎
+ * 用户逐项选择（价格因素 / 非价格因素 → 各项 → 需求大了/小了、供给多了/少了、幅度）
+ * 引擎把选择翻译成供需曲线位移，并区分：
+ *   · 沿曲线移动（价格因素：数量变化、曲线不动）
+ *   · 曲线位移（非价格因素：需求/供给曲线整体移动）
+ * ========================================================================= */
+(function (G) {
+  'use strict';
+  var C = G.CORE, SD = G.SD;
+
+  var SIZE = { 1: 0.35, 2: 0.7, 3: 1.0 };     // 三档幅度（相对 8% 的基幅度）
+  var UNIT = 8;                                  // 一档 = 8% 位移
+
+  /* 因素目录：side = D(需求) / S(供给) / P(价格轴) */
+  var FACTORS = [
+    { id: 'price', side: 'P', group: '价格因素', label: '价格 / 售价',
+      up: '我把价格调高', down: '我把价格调低', axis: '价格轴', note: '引起沿需求曲线的移动（量减价升），曲线本身不动' },
+    { id: 'dD', side: 'D', group: '非价格 · 需求', label: '需求整体（其它条件一定）',
+      up: '需求大了（买的人变多）', down: '需求小了（买的人变少）', axis: '需求曲线', note: '需求曲线右移/左移' },
+    { id: 'sub', side: 'D', group: '非价格 · 需求', label: '替代品价格',
+      up: '替代品涨价 → 需求大了', down: '替代品降价 → 需求小了', axis: '需求曲线', note: '替代品越贵，本商品需求越旺' },
+    { id: 'comp', side: 'D', group: '非价格 · 需求', label: '互补品价格',
+      up: '互补品涨价 → 需求小了', down: '互补品降价 → 需求大了', axis: '需求曲线', note: '互补品价格与需求反向（invert）' },
+    { id: 'income', side: 'D', group: '非价格 · 需求', label: '收入（正常商品）',
+      up: '收入上升 → 需求大了', down: '收入下降 → 需求小了', axis: '需求曲线', note: '正常商品需求随收入同向变动' },
+    { id: 'iIncome', side: 'D', group: '非价格 · 需求', label: '收入（低档品）',
+      up: '收入上升 → 需求小了', down: '收入下降 → 需求大了', axis: '需求曲线', note: '低档品需求随收入反向变动（invert）' },
+    { id: 'taste', side: 'D', group: '非价格 · 需求', label: '偏好 / 潮流',
+      up: '更喜欢了 / 流行', down: '不喜欢了 / 过时', axis: '需求曲线', note: '偏好与需求同向' },
+    { id: 'expect', side: 'D', group: '非价格 · 需求', label: '消费者预期',
+      up: '预期涨价 → 抢购', down: '预期跌价 → 观望', axis: '需求曲线', note: '预期与需求同向' },
+    { id: 'advert', side: 'D', group: '非价格 · 需求', label: '广告 / 营销 / 直播',
+      up: '加强营销', down: '减少营销', axis: '需求曲线', note: '广告提升需求' },
+    { id: 'population', side: 'D', group: '非价格 · 需求', label: '人口 / 市场规模',
+      up: '人口增加 / 市场扩大', down: '人口减少 / 市场缩小', axis: '需求曲线', note: '需求随人口规模同向' },
+    { id: 'globalIncome', side: 'D', group: '非价格 · 需求', label: '全球宏观（顺周期）',
+      up: '全球经济回暖', down: '全球经济转弱', axis: '需求曲线', note: '宏观景气拉动需求' },
+    { id: 'dS', side: 'S', group: '非价格 · 供给', label: '供给整体（其它条件一定）',
+      up: '供给大了（卖家/产量变多）', down: '供给小了（卖家/产量变少）', axis: '供给曲线', note: '供给曲线右移/左移' },
+    { id: 'cost', side: 'S', group: '非价格 · 供给', label: '成本（原料 / 人工 / 运费）',
+      up: '成本上涨 → 供给小了', down: '成本下降 → 供给大了', axis: '供给曲线', note: '成本与供给反向（invert）' },
+    { id: 'input', side: 'S', group: '非价格 · 供给', label: '生产要素价格',
+      up: '要素涨价 → 供给小了', down: '要素降价 → 供给大了', axis: '供给曲线', note: 'invert' },
+    { id: 'capacity', side: 'S', group: '非价格 · 供给', label: '产能 / 生产规模',
+      up: '扩产 → 供给大了', down: '产能收缩 → 供给小了', axis: '供给曲线', note: '产能与供给同向' },
+    { id: 'tariff', side: 'S', group: '非价格 · 供给', label: '关税 / 税负',
+      up: '加税 → 供给小了', down: '减税 → 供给大了', axis: '供给曲线', note: 'invert' },
+    { id: 'technology', side: 'S', group: '非价格 · 供给', label: '技术进步',
+      up: '技术提升 → 供给大了', down: '技术落后 → 供给小了', axis: '供给曲线', note: '技术进步降低边际成本' }
+  ];
+  var FACTOR_BY_ID = {};
+  FACTORS.forEach(function (f) { FACTOR_BY_ID[f.id] = f; });
+
+  /* 抽取“曲线位移”的决定性字段（与 02_sd 的 FIELDS 对应） */
+  var FIELD_MAP = {
+    price: null, dD: 'dD', sub: 'sub', comp: 'comp', income: 'nIncome', iIncome: 'iIncome',
+    taste: 'taste', expect: 'expect', advert: 'advert', population: 'population', globalIncome: 'globalIncome',
+    dS: 'dS', cost: 'cost', input: 'input', capacity: 'capacity', tariff: 'tariff', technology: 'capacity'
+  };
+
+  function buildOpts(draft) {
+    var o = { P0: draft.P0, Q0: draft.Q0, ED: draft.ED, ES: draft.ES, nIncome: 0, iIncome: 0 };
+    SD.FIELDS.forEach(function (f) { o[f.id] = f.type === 'number' ? null : 0; });
+    var priceMove = 0;
+    var acts = draft.active || {};
+    Object.keys(acts).forEach(function (id) {
+      var a = acts[id];
+      if (!a || !a.dir) return;
+      var size = SIZE[a.size] || SIZE[2];
+      var v = a.dir * size * UNIT;
+      if (id === 'price') { priceMove = v; return; }
+      var f = FIELD_MAP[id];
+      if (!f) return;
+      if (id === 'technology' && a.dir > 0) { o.capacity += v; }
+      else if (id === 'dS') { o.dS += v; }                 // 供给整体：方向本身就是“供给大/小”
+      else if (id === 'dD') { o.dD += v; }
+      else if (id === 'income') { o.nIncome += v; }
+      else if (id === 'iIncome') { o.iIncome += v; }
+      else o[f] += v;
+    });
+    /* 正常商品与低档品是两个互斥的选项组，同时选时取净值 */
+    o.floor = draft.floor != null && isFinite(draft.floor) ? draft.floor : null;
+    o.ceiling = draft.ceiling != null && isFinite(draft.ceiling) ? draft.ceiling : null;
+    if (o.tariff) o.tariff = C.clamp(o.tariff, -30, 50);
+    return { opts: o, priceMove: priceMove };
+  }
+
+  /* 中文标题：从选择里生成自然语言 */
+  function describe(draft) {
+    var acts = draft.active || {}, parts = [];
+    FACTORS.forEach(function (f) {
+      var a = acts[f.id];
+      if (!a || !a.dir) return;
+      var sz = ['', '小幅', '明显', '大幅'][a.size || 2];
+      var txt = a.dir > 0 ? f.up : f.down;
+      parts.push(sz + txt);
+    });
+    return parts.length ? parts.join('，') : '（未选择任何变动）';
+  }
+
+  function solve(draft) {
+    var built = buildOpts(draft);
+    var base = SD.solveSupplyDemand(zeroed(built.opts));
+    var fin = SD.solveSupplyDemand(built.opts);
+    var pm = built.priceMove;      // 价格因素引起的价格变动 %
+    var pricePct = fin.priceChangePct + pm;
+    var qtyPct = fin.qtyChangePct - pm * fin.ED;
+    var priceNow = base.P0 * Math.exp(fin.eta + pm / 100);
+    var qtyNow = base.Q0 * Math.exp(fin.nu - (pm / 100) * fin.ED);
+    return {
+      base: base, final: fin, priceMove: pm,
+      pricePct: pricePct, qtyPct: qtyPct,
+      priceNow: priceNow, qtyNow: qtyNow,
+      /* 分解 */
+      priceFromNonPrice: fin.priceChangePct,
+      priceFromPrice: pm,
+      qtyFromNonPrice: fin.qtyChangePct,
+      qtyFromPrice: -pm * fin.ED,
+      binding: fin.binding,
+      desc: describe(draft),
+      netD: (fin.A - base.A), netS: (fin.B - base.B)
+    };
+  }
+
+  function zeroed(o) {
+    var z = {};
+    for (var k in o) z[k] = o[k];
+    SD.FIELDS.forEach(function (f) { z[f.id] = f.type === 'number' ? null : 0; });
+    z.nIncome = 0; z.iIncome = 0; z.floor = null; z.ceiling = null;
+    return z;
+  }
+
+  /* 生成 SVG 路径：坐标 (q,p) 对数空间 → 屏幕（含坐标轴刻度） */
+  function geometry(draft, box) {
+    var b = buildOpts(draft);
+    var base = SD.solveSupplyDemand(zeroed(b.opts));
+    var fin = SD.solveSupplyDemand(b.opts);
+    var ED = fin.ED, ES = fin.ES;
+    var A0 = base.A, B0 = base.B, A1 = fin.A, B1 = fin.B;
+    var e0 = 0, e1 = fin.eta;
+    var pLo = Math.min(e0, e1) - 0.45, pHi = Math.max(e0, e1) + 0.45;
+    function qD(A, p) { return A - ED * p; }
+    function qS(B, p) { return B + ES * p; }
+    var qs = [qD(A0, pLo), qD(A0, pHi), qD(A1, pLo), qD(A1, pHi), qS(B0, pLo), qS(B0, pHi), qS(B1, pLo), qS(B1, pHi), 0];
+    /* 横轴范围用“可见价格窗口内”的截断值来定，否则画布外的线段会把横轴拉得很宽 */
+    var pVisLo = pLo - 0.05, pVisHi = pHi + 0.05;
+    var qVis = [qD(A0, pVisLo), qD(A0, pVisHi), qD(A1, pVisLo), qD(A1, pVisHi), qS(B0, pVisLo), qS(B0, pVisHi), qS(B1, pVisLo), qS(B1, pVisHi), 0];
+    var qLo = Math.min.apply(null, qVis) - 0.08, qHi = Math.max.apply(null, qVis) + 0.08;
+    function X(q) { return box.x + (q - qLo) / (qHi - qLo) * box.w; }
+    function Y(p) { return box.y + box.h - (p - pLo) / (pHi - pLo) * box.h; }
+    function line(qa, pa, qb, pb) { return 'M' + X(qa).toFixed(1) + ',' + Y(pa).toFixed(1) + ' L' + X(qb).toFixed(1) + ',' + Y(pb).toFixed(1); }
+    /* 刻度：价格轴 ±%、数量轴 ±% */
+    var pTicks = [-30, -20, -10, 0, 10, 20, 30, 40, 50, 60, 80].filter(function (t) { var lg = Math.log(1 + t / 100); return lg >= pLo && lg <= pHi; });
+    var qTicks = [-30, -20, -10, 0, 10, 20, 30, 40, 50, 60, 80].filter(function (t) { var lg = Math.log(1 + t / 100); return lg >= qLo && lg <= qHi; });
+    return {
+      D0: line(qD(A0, pLo), pLo, qD(A0, pHi), pHi),
+      D1: line(qD(A1, pLo), pLo, qD(A1, pHi), pHi),
+      S0: line(qS(B0, pLo), pLo, qS(B0, pHi), pHi),
+      S1: line(qS(B1, pLo), pLo, qS(B1, pHi), pHi),
+      E0: { x: X(0), y: Y(0) }, E1: { x: X(fin.nu), y: Y(fin.eta) },
+      X: X, Y: Y,
+      origin: { x: X(qLo), y: Y(pLo) },
+      ticks: {
+        price: pTicks.map(function (t) { return { t: t, x: box.x - 4, y: Y(Math.log(1 + t / 100)) }; }),
+        qty: qTicks.map(function (t) { return { t: t, x: X(Math.log(1 + t / 100)), y: box.y + box.h + 14 }; })
+      },
+      moved: { D: Math.abs(A1 - A0) > 1e-6, S: Math.abs(B1 - B0) > 1e-6 },
+      fin: fin, base: base
+    };
+  }
+
+  G.HandModel = { FACTORS: FACTORS, FACTOR_BY_ID: FACTOR_BY_ID, SIZE: SIZE, buildOpts: buildOpts, solve: solve, geometry: geometry, describe: describe };
+})(typeof globalThis !== 'undefined' ? globalThis : window);
+</script>
+<script>/* =========================================================================
+ * 界面层（仅在浏览器中执行）：首次利率录入 / 自动模式 / 手绘模式 / TXT 解码 / 实时曲线
+ * ========================================================================= */
+(function (G) {
+  'use strict';
+  if (typeof document === 'undefined') return;
+
+  var C = G.CORE, P = G.TXTParser, H = G.HandModel;
+  var $ = function (sel, root) { return (root || document).querySelector(sel); };
+  var $$ = function (sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); };
+  var fmt = C.fnum, esc = C.escHtml;
+
+  var SIDES = ['Dr', 'Ss', 'Sh', 'Sp', 'Fs', 'Ge', 'Im', 'Cb'];
+  var SIDE_LBL = { Dr: '需求', Ss: '供给', Sh: '库存', Sp: '价格', Fs: '金融', Ge: '地缘', Im: '货币', Cb: '购金' };
+  var STORE_PREFIX = 'spvp_';
+
+  /* ------------------------------ 状态 ------------------------------ */
+  var S = {
+    rates: null,
+    infl: null,
+    events: [],
+    eventsById: {},
+    selected: 'gold',
+    custom: { name: '我的商品', price: 100, unit: '元', qty: 1, ED: 1.3, ES: 0.9 },
+    inst: { gold: { dxy: 100 }, brent: { spare: 2.1 }, gas: { swing: 1.0 } },
+    engines: {},
+    tickMs: 1000,
+    tickTimer: null,
+    draft: null
+  };
+
+  /* --------------------------- 本地存储 --------------------------- */
+  function todayKey() { return C.dateStr(new Date()); }
+  function store(k, v) { try { if (v === undefined) return JSON.parse(localStorage.getItem(STORE_PREFIX + k)); localStorage.setItem(STORE_PREFIX + k, JSON.stringify(v)); } catch (e) { return null; } }
+  function loadRatesToday() { var o = store('rates'); return (o && o.day === todayKey() && o.rates) ? o.rates : null; }
+  function saveRatesToday(r) { store('rates', { day: todayKey(), rates: r }); }
+
+  /* --------------------------- 首次启动：利率录入 --------------------------- */
+  var RATE_FIELDS = [
+    { id: 'usRate', label: '美国名义利率', def: '4.50', unit: '%' },
+    { id: 'usCore', label: '美国核心 CPI（同比）', def: '3.00', unit: '%' },
+    { id: 'usCpi', label: '美国 CPI（同比，整体）', def: '3.60', unit: '%' },
+    { id: 'usY10', label: '美国 10 年期国债收益率', def: '4.20', unit: '%' },
+    { id: 'cnRate', label: '中国名义利率（LPR）', def: '1.50', unit: '%' },
+    { id: 'cnCore', label: '中国核心 CPI（同比）', def: '0.70', unit: '%' },
+    { id: 'cnCpi', label: '中国 CPI（同比，整体）', def: '0.30', unit: '%' },
+    { id: 'cnY10', label: '中国 10 年期国债收益率', def: '1.80', unit: '%' },
+    { id: 'fx', label: '美元兑人民币 USD/CNY', def: '7.12', unit: '' },
+    { id: 'dxy', label: '美元指数 DXY', def: '100', unit: '' }
+  ];
+
+  function openRateDialog(firstTime) {
+    var dim = document.createElement('div');
+    dim.className = 'modal-dim';
+    var saved = S.rates || {};
+    var rows = RATE_FIELDS.map(function (f) {
+      var v = saved[f.id] != null ? saved[f.id] : f.def;
+      return '<label class="rate-row"><span>' + esc(f.label) + '</span>' +
+        '<input type="number" step="0.01" data-field="' + f.id + '" value="' + esc(v) + '">' +
+        (f.unit ? '<em>' + f.unit + '</em>' : '<em></em>') + '</label>';
+    }).join('');
+    dim.innerHTML = '<div class="modal">' +
+      '<h2>' + (firstTime ? '首次启动 · 录入今日人民币 / 美元利率与汇率' : '修改今日利率与汇率') + '</h2>' +
+      '<p class="muted">算法用「名义利率 − 核心通胀 = 实际利率」判定通胀 / 通缩，并据此决定黄金的<b>机会成本</b>、原油的<b>输入型通胀</b>与<b>极端情景强度</b>（极端模式会切换到更精确的特例算法）。每天第一次打开都会询问一次，当天沿用。</p>' +
+      '<div class="rate-grid">' + rows + '</div>' +
+      '<div class="rate-preview" id="ratePreview"></div>' +
+      '<div class="modal-actions">' +
+      '<button class="btn ghost" id="rateSkip">' + (firstTime ? '用示例数值开始' : '取消') + '</button>' +
+      '<button class="btn primary" id="rateSave">' + (firstTime ? '开始（已录入今日数据）' : '保存') + '</button>' +
+      '</div></div>';
+    document.body.appendChild(dim);
+    function readAll() {
+      var r = {};
+      $$('input[data-field]', dim).forEach(function (inp) { r[inp.dataset.field] = C.num(inp.value, 0); });
+      return r;
+    }
+    function preview() {
+      var inf = C.computeInflation(readAll());
+      var extremeLv = inf.extreme > 1.0 ? '<b style="color:var(--neg)">高（触发极端模式）</b>' : (inf.extreme > 0.5 ? '<b style="color:var(--gold)">中</b>' : '低');
+      $('#ratePreview', dim).innerHTML =
+        '美国实际利率 <b>' + inf.USreal.toFixed(2) + '%</b> → ' + inf.USkind.label + '　|　' +
+        '中国实际利率 <b>' + inf.CNreal.toFixed(2) + '%</b> → ' + inf.CNkind.label + '<br>' +
+        '输入型通胀（汇率传导）<b>' + inf.importedCN.toFixed(2) + '</b>　|　汇率偏离 <b>' + (inf.fxStress * 100).toFixed(1) + '%</b>　|　极端情景强度 <b>' + inf.extreme.toFixed(2) + '</b> ' + extremeLv;
+    }
+    $$('input[data-field]', dim).forEach(function (inp) { inp.addEventListener('input', preview); });
+    preview();
+    $('#rateSave', dim).onclick = function () { S.rates = readAll(); saveRatesToday(S.rates); dim.remove(); onRatesReady(); };
+    $('#rateSkip', dim).onclick = function () { if (firstTime) { S.rates = readAll(); saveRatesToday(S.rates); } dim.remove(); onRatesReady(); };
+  }
+
+  function onRatesReady() {
+    S.infl = C.computeInflation(S.rates || {});
+    S.inst.gold.dxy = C.num(S.rates && S.rates.dxy, 100) || 100;
+    if ($('#instGold')) $('#instGold').value = S.inst.gold.dxy;
+    renderRateChip();
+    refreshAll();
+  }
+
+  function renderRateChip() {
+    var inf = C.computeInflation(S.rates || {});
+    var el = $('#rateChip');
+    if (!el) return;
+    var col = inf.USkind.kind === 'inflation' ? '#ff7a59' : (inf.USkind.kind === 'deflation' ? '#4aa8ff' : '#7ee0a8');
+    el.innerHTML = '<span class="dot" style="background:' + col + '"></span>' +
+      '美实际利率 ' + inf.USreal.toFixed(2) + '% · 中实际利率 ' + inf.CNreal.toFixed(2) + '% · USD/CNY ' + inf.FX.toFixed(3) +
+      ' · <b>' + inf.USkind.label + '</b> / ' + inf.CNkind.label;
+    el.title = '点击修改今日利率与汇率';
+    el.onclick = function () { openRateDialog(false); };
+  }
+
+  /* --------------------------- 实时引擎 --------------------------- */
+  var START = { gold: 4542.81, brent: 68.94, gas: 5.60, daily: 13.0, custom: 100 };
+
+  function engineFor(cid) {
+    if (S.engines[cid]) return S.engines[cid];
+    var p0 = cid === 'custom' ? S.custom.price : START[cid];
+    var eng = C.createEngine({ price: p0, sigma: cid === 'gold' ? 0.010 : 0.012, seed: 20261031 + cid.length * 7 });
+    /* 初始目标价 = 起点价，避免开局把目标价格拉回锚点 */
+    eng.target = p0;
+    eng.hist = [];
+    for (var i = 90; i > 0; i--) eng.hist.push({ t: Date.now() - i * 6000, p: p0 * (1 + 0.0035 * Math.sin(i / 9)) });
+    S.engines[cid] = eng;
+    return eng;
+  }
+
+  function basePriceOf(cid) {
+    if (cid === 'custom') return S.custom.price;
+    return START[cid];
+  }
+
+  function stateOf(cid, now) {
+    var inf = C.computeInflation(S.rates || {});
+    return {
+      now: now || new Date(),
+      price: 0,
+      rates: { US: inf.US.r, core: inf.US.core, cpi: inf.US.cpi, FX: inf.FX },
+      infl: { US_core: inf.US.core, CN: inf.CN.cpi },
+      dxy: S.inst.gold.dxy,
+      spare: S.inst.brent.spare,
+      storageRatio: S.inst.gas.swing,
+      inst: {}
+    };
+  }
+
+  function computeModel(cid, now) {
+    now = now || new Date();
+    var st = stateOf(cid, now);
+    var eng = engineFor(cid);
+    st.price = eng.price;
+    var mine = S.events.filter(function (e) { return e.commodity === (cid === 'custom' ? 'custom' : cid); });
+    var shock = C.composeShock('commodity', mine, now, 'commodity');
+    var out;
+    if (cid === 'gold') out = C.goldModel(shock.ev, st, 1);
+    else if (cid === 'brent') out = C.oilModel(shock.ev, st, 1);
+    else if (cid === 'gas') out = C.gasModel(shock.ev, st, 1);
+    else if (cid === 'daily') out = C.dailyModel(shock.ev, st, C.DAILY_GOODS[0]);
+    else out = C.genericModel(shock.ev, st, S.custom);
+    out.shock = shock;
+    out.state = st;
+    out.scenario = C.scenarioOf(shock.ev);
+    out.confidence = C.confidenceOf(shock.ev, shock.n);
+    out.infl = C.computeInflation(S.rates || {});
+    return out;
+  }
+
+  function refreshAll() {
+    ['gold', 'brent', 'gas', 'daily', 'custom'].forEach(function (cid) {
+      var m = computeModel(cid, new Date());
+      var eng = engineFor(cid);
+      eng.target = m.target;
+      eng.kappa = m.kappa || 0.05;
+      eng.sigma = (m.sigma || 0.012) * (1 + Math.min(1, Math.abs(m.target / eng.price - 1)));
+    });
+    renderAll();
+  }
+
+  /* --------------------------- 渲染：自动模式 --------------------------- */
+  function tabMeta(cid) {
+    if (cid === 'gold') return { name: '黄金', unit: '美元/盎司', base: START.gold, tag: '2026 YTD 均价 4542.81' };
+    if (cid === 'brent') return { name: '布伦特原油', unit: '美元/桶', base: START.brent, tag: '2026 YTD 68.94' };
+    if (cid === 'gas') return { name: 'Henry Hub 天然气', unit: '美元/MMBtu', base: START.gas, tag: '2026 YTD 5.60' };
+    if (cid === 'daily') return { name: '日用品实付价', unit: '元', base: C.DAILY_GOODS[0].paid, tag: '2026 实测实付' };
+    return { name: S.custom.name || '我的商品', unit: S.custom.unit || '元', base: S.custom.price, tag: '来自手绘模式参数' };
+  }
+
+  function fmtPx(v, unit) {
+    var pre = '';
+    if (unit && unit.indexOf('美元') >= 0) pre = '$';
+    else if (unit && unit === '元') pre = '¥';
+    var d = Math.abs(v) < 10 ? 3 : (Math.abs(v) < 100 ? 2 : 1);
+    return pre + fmt(v, d);
+  }
+
+  function renderTabs() {
+    var tabs = [
+      { id: 'gold', name: '黄金', sub: '美元/盎司' },
+      { id: 'brent', name: '布伦特原油', sub: '美元/桶' },
+      { id: 'gas', name: 'Henry Hub 天然气', sub: '美元/MMBtu' },
+      { id: 'daily', name: '日用品（实付价）', sub: '元' },
+      { id: 'custom', name: '我的商品', sub: '手绘参数' }
+    ];
+    $('#tabs').innerHTML = tabs.map(function (t) {
+      return '<button class="tab' + (S.selected === t.id ? ' on' : '') + '" data-tab="' + t.id + '"><b>' + esc(t.name) + '</b><span>' + esc(t.sub) + '</span></button>';
+    }).join('');
+    $$('#tabs .tab').forEach(function (b) { b.onclick = function () { S.selected = b.dataset.tab; renderTabs(); renderAll(); }; });
+  }
+
+  function renderHero(m) {
+    var cid = S.selected, meta = tabMeta(cid), eng = engineFor(cid);
+    var price = eng.price;
+    var gap = (m.target / price - 1) * 100;
+    var dir = gap >= 0 ? 'up' : 'down';
+    var html = '<div class="hero-head"><div>' +
+      '<div class="hero-title">' + esc(meta.name) + ' <span class="unit">' + esc(meta.unit) + '</span></div>' +
+      '<div class="hero-sub">实时观测价（每 ' + (S.tickMs / 1000) + 's 刷新） · 模型出清目标 ' + fmtPx(m.target, meta.unit) + '（偏离 ' + (gap >= 0 ? '+' : '') + gap.toFixed(2) + '%）</div>' +
+      '</div><div class="hero-tag ' + (/泡沫|超调|偏离/.test(m.scenario.name) ? 'warn' : 'ok') + '">' + esc(m.scenario.name) + '</div></div>';
+    html += '<div class="hero-price ' + dir + '">' + fmtPx(price, meta.unit) + '<span class="chg">' + (gap >= 0 ? '↑ +' : '↓ ') + gap.toFixed(2) + '%</span></div>';
+    html += '<div class="hero-meta"><span class="pill">' + esc(meta.tag) + '</span>' +
+      '<span>参与计算的事件 ' + m.shock.n + ' 条</span><span>置信度 ' + (m.confidence * 100).toFixed(0) + '%</span>';
+    if (m.forecastGap) html += '<span>对预测锚偏离 ' + (m.forecastGap * 100).toFixed(1) + '%</span>';
+    html += '</div>';
+    if (m.extreme) html += '<div class="extreme">⚠ 极端情景算法启用：' + esc(m.extreme.name) + '（' + (m.extreme.dir > 0 ? '尖峰上行' : '塌陷下行') + ' ≈ ' + (m.extreme.amp * 100).toFixed(0) + '%）</div>';
+    if (cid === 'gold') {
+      var gram = price * (C.computeInflation(S.rates || {}).FX) / 31.1035;
+      html += '<div class="hero-sub">人民币金价 ≈ <b>' + fmt(gram, 2) + '</b> 元/克（按今日 USD/CNY） · 实际利率 ' + m.infl.USreal.toFixed(2) + '%（' + m.infl.USkind.label + '） · 极端强度 ' + m.infl.extreme.toFixed(2) + '</div>';
+    }
+    if (cid === 'brent') html += '<div class="hero-sub">短期供给弹性 ≈ ' + (m.dEff || 0).toFixed(2) + ' · OPEC 闲置产能 ' + (m.spare || 0).toFixed(1) + ' 百万桶/日 · 输入型通胀 ' + m.infl.importedCN.toFixed(2) + '</div>';
+    if (cid === 'gas') html += '<div class="hero-sub">' + esc(m.extra || '') + '</div>';
+    if (cid === 'daily') html += '<div class="hero-sub">标价 ¥' + fmt(m.list, 2) + ' → 实付 ¥' + fmt(m.paid, 2) + '（折扣率 ' + (m.disc * 100).toFixed(1) + '%，需求弹性 |Ed|≈2.5）</div>';
+    $('#hero').innerHTML = html;
+    drawSpark(eng.hist, m.target);
+  }
+
+  function drawSpark(hist, target) {
+    var box = $('#spark');
+    if (!box) return;
+    var w = 520, h = 96;
+    var arr = hist.map(function (q) { return q.p; }).concat([target]);
+    if (arr.length < 2) { box.innerHTML = ''; return; }
+    var lo = Math.min.apply(null, arr), hi = Math.max.apply(null, arr);
+    if (hi - lo < 1e-9) hi = lo + Math.abs(lo) * 0.001 + 1e-6;
+    var X = function (i) { return 4 + (i / (arr.length - 1)) * (w - 8); };
+    var Y = function (v) { return h - 6 - (v - lo) / (hi - lo) * (h - 12); };
+    var d = '';
+    arr.forEach(function (v, i) { d += (i ? 'L' : 'M') + X(i).toFixed(1) + ',' + Y(v).toFixed(1); });
+    box.innerHTML = '<svg width="100%" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none">' +
+      '<defs><linearGradient id="gl" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7ee0a8"/><stop offset="1" stop-color="#4aa8ff"/></linearGradient></defs>' +
+      '<line x1="4" y1="' + Y(target).toFixed(1) + '" x2="' + (w - 4) + '" y2="' + Y(target).toFixed(1) + '" stroke="#ffd166" stroke-dasharray="5 4" stroke-opacity=".55"/>' +
+      '<path d="' + d + '" fill="none" stroke="url(#gl)" stroke-width="2"/>' +
+      '<circle cx="' + X(arr.length - 1).toFixed(1) + '" cy="' + Y(target).toFixed(1) + '" r="3.5" fill="#ffd166"/>' +
+      '</svg>';
+  }
+
+  function renderDrivers(m) {
+    var d = m.drivers || [];
+    var maxAbs = Math.max.apply(null, d.map(function (x) { return Math.abs(x.v || 0); }).concat([1]));
+    var html = '<h3>价格驱动分解<span class="muted">（各因子对目标价的百分比贡献）</span></h3><div class="drivers">';
+    d.forEach(function (x) {
+      var w = Math.min(100, Math.abs(x.v || 0) / maxAbs * 100);
+      html += '<div class="drv"><div class="drv-k">' + esc(x.k) + '</div><div class="drv-bar"><i class="' + (x.v >= 0 ? 'pos' : 'neg') + '" style="width:' + w.toFixed(1) + '%"></i></div>' +
+        '<div class="drv-v ' + (x.v > 0 ? 'pos' : (x.v < 0 ? 'neg' : '')) + '">' + (x.v >= 0 ? '+' : '') + (x.v || 0).toFixed(2) + '</div>' +
+        '<div class="drv-n muted">' + esc(x.note || '') + '</div></div>';
+    });
+    html += '</div><div class="scenario"><b>情景：' + esc(m.scenario.name) + '</b><br><span class="muted">' + esc(m.scenario.why) + '</span></div>';
+    $('#drivers').innerHTML = html;
+  }
+
+  function renderShockTable(m) {
+    var ev = m.shock ? m.shock.ev : {};
+    var html = '<h3>综合冲击向量<span class="muted">（按半衰期衰减 + 权重）</span></h3><div class="shock-grid">';
+    SIDES.forEach(function (k) {
+      var v = ev[k] || 0;
+      html += '<div class="shk"><div class="k">' + SIDE_LBL[k] + '</div><div class="v ' + (v > 0.05 ? 'pos' : (v < -0.05 ? 'neg' : '')) + '">' + (v >= 0 ? '+' : '') + v.toFixed(2) + '</div></div>';
+    });
+    html += '</div><div class="legend muted">需求↑ / 供给↓（中断、减产）/ 库存↓（去库）/ 地缘↑ 推升价格；供给↑ / 库存↑ / 需求↓ 压低价格。在黄金模型中，货币（通胀）因子等于负的实际利率效应；在原油模型中，供给冲击还要乘以「闲置产能调节阀」。</div>';
+    $('#shockTable').innerHTML = html;
+
+    var list = (m.shock ? m.shock.list : []).slice().sort(function (a, b) { return b.w - a.w; }).slice(0, 7);
+    var lh = '<h3>当前权重最高的事件</h3><div class="ev-list">';
+    if (!list.length) lh += '<div class="muted">该品种暂无未衰减事件</div>';
+    list.forEach(function (x) {
+      var e = x.ev;
+      lh += '<div class="ev-item" data-focus="' + esc(e.id) + '"><div class="ev-top"><span class="ev-date">' + esc(e.date) + ' · ' + esc(e.src) + '</span><span class="ev-w">权重 ' + x.w.toFixed(2) + '</span></div>' +
+        '<div class="ev-text">' + esc(e.text) + '</div><div class="ev-chips">' + chipsOf(e) + '</div></div>';
+    });
+    lh += '</div>';
+    $('#topEvents').innerHTML = lh;
+    $$('#topEvents .ev-item').forEach(function (el) { el.onclick = function () { focusEvent(el.dataset.focus); }; });
+  }
+
+  function chipsOf(e) {
+    var s = '';
+    SIDES.forEach(function (k) {
+      var v = e[k] || 0;
+      if (Math.abs(v) < 0.01) return;
+      s += '<span class="chip ' + (v > 0 ? 'pos' : 'neg') + '">' + SIDE_LBL[k] + ' ' + (v > 0 ? '+' : '') + v.toFixed(1) + '</span>';
+    });
+    if (e.quote) s += '<span class="chip q">传闻</span>';
+    if (e.future) s += '<span class="chip q">预期/预测</span>';
+    if (e.weight !== 1) s += '<span class="chip q">权重 ' + e.weight + '</span>';
+    return s || '<span class="chip">无方向</span>';
+  }
+
+  function renderHistoryTable(cid) {
+    var box = $('#history');
+    if (cid === 'daily') { box.innerHTML = '<h3>日用品：标价 / 实付价（2026 实测）</h3><div id="dailyInner"></div>'; renderDailyTable(); return; }
+    if (cid === 'custom') {
+      box.innerHTML = '<h3>我的商品</h3><div class="legend muted">此标的的价格由「手绘模式」中的参数决定：名称、现价 P₀、现量 Q₀、需求弹性 |Ed|、供给弹性 Es。以上各项在上方切换后立即生效。</div>';
+      return;
+    }
+    var r = C.REF_SERIES[cid];
+    var title = cid === 'gold' ? '黄金年均价' : (cid === 'brent' ? '布伦特原油年均价' : 'Henry Hub 天然气年均价');
+    var html = '<h3>' + title + '<span class="muted">（单位：' + r.unit + '；' + r.srcLabel + ' / ' + r.altLabel + '）</span></h3>' +
+      '<div class="legend muted">' + esc(r.anchorNote) + '。最后一行是实时锚点。</div>' +
+      '<table class="history-table"><thead><tr><th>年份</th><th>' + r.srcLabel + '</th><th>' + r.altLabel + '</th><th>年均同比</th><th>两口径偏差</th></tr></thead><tbody>';
+    for (var i = 0; i < r.years.length; i++) {
+      var v = r.src[i] != null ? r.src[i] : null;
+      var a = r.alt[i] != null ? r.alt[i] : null;
+      var prevV = i > 0 ? (r.src[i - 1] != null ? r.src[i - 1] : r.alt[i - 1]) : null;
+      var yoy = v && prevV ? (v / prevV - 1) * 100 : null;
+      var dev = v && a ? (a / v - 1) * 100 : null;
+      var last = i === r.years.length - 1;
+      html += '<tr class="' + (last ? 'hl' : '') + '"><td>' + r.years[i] + (last ? '（锚）' : '') + '</td><td>' + (v == null ? '—' : fmt(v, 2)) + '</td><td>' + (a == null ? '—' : fmt(a, 2)) + '</td>' +
+        '<td class="' + (yoy > 0 ? 'pos' : (yoy < 0 ? 'neg' : '')) + '">' + (yoy == null ? '—' : (yoy >= 0 ? '+' : '') + yoy.toFixed(1) + '%') + '</td>' +
+        '<td>' + (dev == null ? '—' : (dev >= 0 ? '+' : '') + dev.toFixed(2) + '%') + '</td></tr>';
+    }
+    html += '</tbody></table>';
+    box.innerHTML = html;
+  }
+
+  function renderDailyTable() {
+    var box = $('#dailyTable');
+    var html = '<h3>2026 年日用品价格：标价 vs 实付</h3><table class="history-table"><thead><tr><th>商品</th><th>标价</th><th>实付</th><th>折扣率</th><th>标价/实付</th></tr></thead><tbody>';
+    C.DAILY_GOODS.forEach(function (g) {
+      var disc = 1 - g.paid / g.list;
+      html += '<tr><td class="t">' + esc(g.name) + '</td><td>¥' + fmt(g.list, 2) + '</td><td><b>¥' + fmt(g.paid, 2) + '</b></td><td class="neg">' + (disc * 100).toFixed(1) + '%</td><td>' + (g.list / g.paid).toFixed(2) + '×</td></tr>';
+    });
+    var avgDisc = C.DAILY_GOODS.reduce(function (s, g) { return s + (1 - g.paid / g.list); }, 0) / C.DAILY_GOODS.length;
+    html += '</tbody></table><div class="legend muted">平均折扣率 <b>' + (avgDisc * 100).toFixed(1) + '%</b>：实付价平均只有标价的 <b>' + ((1 - avgDisc) * 100).toFixed(1) + '%</b>。标价是心理锚，实际成交由平台补贴 + 促销 + 议价决定——这正是「高弹性、可替代」日用品市场的典型形态：需求一定时，供给端（渠道）越宽松，实付价越向下探。</div>';
+    box.innerHTML = html;
+  }
+
+  function renderAll() {
+    renderTabs();
+    var cid = S.selected;
+    var m = computeModel(cid, new Date());
+    renderHero(m);
+    if (cid !== 'custom') {
+      renderDrivers(m);
+      renderShockTable(m);
+    } else {
+      $('#drivers').innerHTML = '<h3>我的商品</h3><div class="muted">在「手绘模式」里设置名称、现价、数量和弹性；这里的实时价格会跟随该参数与冲击向量变化。</div>';
+      $('#shockTable').innerHTML = '';
+      $('#topEvents').innerHTML = '';
+    }
+    renderHistoryTable(cid);
+    renderDailyTable();
+  }
+
+  /* --------------------------- 手绘模式 --------------------------- */
+  function defaultDraft() {
+    return { P0: 100, Q0: 100, ED: 1.5, ES: 1.0, name: '我的商品', active: {} };
+  }
+
+  function renderHand() {
+    if (!S.draft) S.draft = store('draft') || defaultDraft();
+    var draft = S.draft;
+    var groups = {};
+    H.FACTORS.forEach(function (f) { (groups[f.group] = groups[f.group] || []).push(f); });
+    var html = '<div class="hand-head">' +
+      '<label>商品名称<input id="hName" value="' + esc(draft.name) + '"></label>' +
+      '<label>现价 P₀<input id="hP0" type="number" step="0.1" value="' + draft.P0 + '"></label>' +
+      '<label>现量 Q₀<input id="hQ0" type="number" step="1" value="' + draft.Q0 + '"></label>' +
+      '<label>需求弹性 |Ed|<input id="hED" type="number" step="0.1" min="0.2" value="' + draft.ED + '"></label>' +
+      '<label>供给弹性 Es<input id="hES" type="number" step="0.1" min="0.1" value="' + draft.ES + '"></label>' +
+      '</div>';
+    html += '<div class="hand-note muted">弹性参考：必需品（米、盐、牙膏）|Ed| 小 0.2~0.6；日用品 / 零食 1~2；奢侈品、可替代品 2~4。供给受限（矿产、产能项目、限量款）Es 0.1~0.4；供给灵活（软件、饮料）1~3。</div>';
+    Object.keys(groups).forEach(function (g) {
+      html += '<div class="factor-group"><h4>' + esc(g) + '</h4><div class="factor-list">';
+      groups[g].forEach(function (f) {
+        var a = draft.active[f.id] || {};
+        html += '<div class="factor" data-id="' + f.id + '"><div class="f-name">' + esc(f.label) + '<span class="muted"> · ' + esc(f.axis) + '</span></div>' +
+          '<div class="f-desc muted">' + esc(f.note) + '</div><div class="f-ctrl">' +
+          '<button class="dir up' + (a.dir === 1 ? ' on' : '') + '" data-dir="1">' + esc(f.up) + '</button>' +
+          '<button class="dir down' + (a.dir === -1 ? ' on' : '') + '" data-dir="-1">' + esc(f.down) + '</button>' +
+          '<span class="size">幅度' + [1, 2, 3].map(function (z) {
+            return '<button class="sz' + ((a.size || 2) === z && a.dir ? ' on' : '') + '" data-size="' + z + '">' + ['小', '中', '大'][z - 1] + '</button>';
+          }).join('') + '</span>' +
+          '<button class="clear" data-clear="1">清零</button></div></div>';
+      });
+      html += '</div></div>';
+    });
+    html += '<div class="mf-actions"><button class="btn ghost" id="hReset">重置全部选择</button><button class="btn primary" id="hApplyCustom">作为「我的商品」用于实时引擎</button></div>';
+    $('#handFactors').innerHTML = html;
+
+    $$('#handFactors .factor').forEach(function (el) {
+      var id = el.dataset.id;
+      $$('[data-dir]', el).forEach(function (b) {
+        b.onclick = function () {
+          var a = draft.active[id];
+          var dir = Number(b.dataset.dir);
+          if (a && a.dir === dir) delete draft.active[id];
+          else draft.active[id] = { dir: dir, size: (a && a.size) || 2 };
+          store('draft', draft); renderHand();
+        };
+      });
+      $$('[data-size]', el).forEach(function (b) {
+        b.onclick = function () {
+          var a = draft.active[id] || { dir: 1, size: 2 };
+          a.size = Number(b.dataset.size); draft.active[id] = a;
+          store('draft', draft); renderHand();
+        };
+      });
+      $('[data-clear]', el).onclick = function () { delete draft.active[id]; store('draft', draft); renderHand(); };
+    });
+    ['hName', 'hP0', 'hQ0', 'hED', 'hES'].forEach(function (idd) {
+      var inp = $('#' + idd);
+      inp.oninput = function () {
+        if (idd === 'hName') draft.name = inp.value;
+        else if (idd === 'hP0') draft.P0 = Math.max(0.0001, C.num(inp.value, 100));
+        else if (idd === 'hQ0') draft.Q0 = Math.max(0.0001, C.num(inp.value, 1));
+        else if (idd === 'hED') draft.ED = Math.max(0.2, C.num(inp.value, 1.5));
+        else draft.ES = Math.max(0.1, C.num(inp.value, 1));
+        store('draft', draft);
+        renderHandResult();
+      };
+    });
+    $('#hReset').onclick = function () { S.draft = defaultDraft(); store('draft', S.draft); renderHand(); };
+    $('#hApplyCustom').onclick = function () {
+      S.custom.name = draft.name || '我的商品'; S.custom.price = draft.P0;
+      S.custom.ED = draft.ED; S.custom.ES = draft.ES; S.custom.qty = draft.Q0;
+      var eng = engineFor('custom'); eng.price = S.custom.price;
+      renderAll();
+      toast('已应用为「我的商品」，自动模式里可查看它的实时走势', 'ok');
+    };
+    renderHandResult();
+  }
+
+  function renderHandResult() {
+    var draft = S.draft;
+    if (!draft) return;
+    var r = H.solve(draft);
+    var W = 540, HH = 350, padL = 46, padB = 34, padT = 18, padR = 14;
+    var boxW = W - padL - padR, boxH = HH - padB - padT;
+    var geo = H.geometry(draft, { x: padL, y: padT, w: boxW, h: boxH });
+    var svg = '<svg viewBox="0 0 ' + W + ' ' + HH + '" preserveAspectRatio="xMidYMid meet">';
+    svg += '<line x1="' + padL + '" y1="' + (padT + boxH) + '" x2="' + (padL + boxW) + '" y2="' + (padT + boxH) + '" stroke="#3a4558" stroke-width="1.5"/>';
+    svg += '<line x1="' + padL + '" y1="' + padT + '" x2="' + padL + '" y2="' + (padT + boxH) + '" stroke="#3a4558" stroke-width="1.5"/>';
+    geo.ticks.price.forEach(function (t) {
+      svg += '<line x1="' + padL + '" y1="' + t.y.toFixed(1) + '" x2="' + (padL + boxW) + '" y2="' + t.y.toFixed(1) + '" stroke="#1c2431"/>' +
+        '<text x="' + (padL - 6) + '" y="' + (t.y + 3.5).toFixed(1) + '" fill="#7b879b" font-size="10" text-anchor="end">' + (t.t > 0 ? '+' : '') + t.t + '%</text>';
+    });
+    geo.ticks.qty.forEach(function (t) {
+      svg += '<text x="' + t.x.toFixed(1) + '" y="' + (padT + boxH + 14) + '" fill="#7b879b" font-size="10" text-anchor="middle">' + (t.t > 0 ? '+' : '') + t.t + '%</text>';
+    });
+    svg += '<text x="' + padL + '" y="' + (padT - 5) + '" fill="#8b98ad" font-size="11">价格 P（对数刻度，相对原均衡）</text>';
+    svg += '<text x="' + (padL + boxW) + '" y="' + (padT + boxH + 28) + '" fill="#8b98ad" font-size="11" text-anchor="end">数量 Q</text>';
+    svg += '<path d="' + geo.D0 + '" stroke="#4aa8ff" stroke-width="1.5" fill="none" stroke-dasharray="5 4" opacity="' + (geo.moved.D ? .8 : 0) + '"/>';
+    svg += '<path d="' + geo.S0 + '" stroke="#ff7a59" stroke-width="1.5" fill="none" stroke-dasharray="5 4" opacity="' + (geo.moved.S ? .8 : 0) + '"/>';
+    svg += '<path d="' + geo.D1 + '" stroke="#4aa8ff" stroke-width="2.5" fill="none"/>';
+    svg += '<path d="' + geo.S1 + '" stroke="#ff7a59" stroke-width="2.5" fill="none"/>';
+    svg += '<text x="' + (padL + boxW - 4) + '" y="' + (padT + 14) + '" fill="#4aa8ff" font-size="11" text-anchor="end">需求 D' + (geo.moved.D ? '（黑虚线为原位置）' : '') + '</text>';
+    svg += '<text x="' + (padL + boxW - 4) + '" y="' + (padT + 28) + '" fill="#ff7a59" font-size="11" text-anchor="end">供给 S' + (geo.moved.S ? '（黑虚线为原位置）' : '') + '</text>';
+    svg += '<circle cx="' + geo.E0.x.toFixed(1) + '" cy="' + geo.E0.y.toFixed(1) + '" r="4" fill="#8a93a8"/>';
+    svg += '<circle cx="' + geo.E1.x.toFixed(1) + '" cy="' + geo.E1.y.toFixed(1) + '" r="5" fill="#ffd166"/>';
+    svg += '<text x="' + (geo.E1.x + 8).toFixed(1) + '" y="' + (geo.E1.y - 8).toFixed(1) + '" fill="#ffd166" font-size="11">新均衡</text>';
+    if (r.priceMove !== 0) {
+      var yP = geo.Y(Math.log(1 + r.priceMove / 100));
+      svg += '<line x1="' + padL + '" y1="' + yP.toFixed(1) + '" x2="' + (padL + boxW) + '" y2="' + yP.toFixed(1) + '" stroke="#b78cff" stroke-dasharray="3 3" opacity=".8"/>' +
+        '<text x="' + (padL + 4) + '" y="' + (yP - 5).toFixed(1) + '" fill="#b78cff" font-size="11">价格因素：价格 ±' + r.priceMove.toFixed(1) + '%（沿曲线移动）</text>';
+    }
+    svg += '</svg>';
+    $('#handChart').innerHTML = svg;
+
+    var html = '<div class="hr-title">' + esc(r.desc) + '</div><div class="hr-grid">' +
+      '<div class="hr"><div class="k">价格变化</div><div class="v ' + (r.pricePct >= 0 ? 'pos' : 'neg') + '">' + (r.pricePct >= 0 ? '+' : '') + r.pricePct.toFixed(2) + '%</div><div class="s">' + fmt(r.priceNow, 2) + ' ← 原 ' + fmt(draft.P0, 2) + '</div></div>' +
+      '<div class="hr"><div class="k">数量变化</div><div class="v ' + (r.qtyPct >= 0 ? 'pos' : 'neg') + '">' + (r.qtyPct >= 0 ? '+' : '') + r.qtyPct.toFixed(2) + '%</div><div class="s">' + fmt(r.qtyNow, 1) + ' ← 原 ' + fmt(draft.Q0, 1) + '</div></div>' +
+      '<div class="hr"><div class="k">价格因素贡献</div><div class="v">' + (r.priceFromPrice >= 0 ? '+' : '') + r.priceFromPrice.toFixed(2) + '%</div><div class="s">沿需求曲线移动（曲线不动）</div></div>' +
+      '<div class="hr"><div class="k">非价格因素贡献</div><div class="v">' + (r.priceFromNonPrice >= 0 ? '+' : '') + r.priceFromNonPrice.toFixed(2) + '%</div><div class="s">曲线整体位移</div></div>' +
+      '</div>';
+    html += '<div class="hr-note muted">需求曲线净位移 <b>' + (r.netD * 100).toFixed(1) + '%</b>，供给曲线净位移 <b>' + (r.netS * 100).toFixed(1) + '%</b>；' +
+      (r.binding ? '均衡被「' + r.binding + '」约束，出现' + (r.binding === '价格上限' ? '短缺' : '过剩') + '。' : '均衡点已完成出清。') + '</div>';
+    if (Math.abs(r.qtyFromPrice) > 0.01) {
+      html += '<div class="hr-note muted">价格因素使需求量沿曲线变化 <b>' + (r.qtyFromPrice >= 0 ? '+' : '') + r.qtyFromPrice.toFixed(2) + '%</b>（= −|Ed| × Δ价格%）。</div>';
+    }
+    if (r.binding === '价格下限') html += '<div class="hr-note neg">价格下限高于均衡价：供给量增加、需求量减少 → 出现过剩（如农产品保护价、最低工资）。</div>';
+    if (r.binding === '价格上限') html += '<div class="hr-note neg">价格上限低于均衡价：供给量减少、需求量增加 → 出现排队/黑市（如租金管制、油价限价）。</div>';
+    $('#handResult').innerHTML = html;
+  }
+
+  /* --------------------------- 新闻库 / TXT 解码 --------------------------- */
+  function bootEvents() {
+    var now = new Date();
+    var seed = P.parseText(G.SEED_TXT, { now: now });
+    seed.events.forEach(function (e) { e.src = '内置'; });
+    var goods = P.parseText(G.GOODS_TXT, { now: now });
+    goods.events.forEach(function (e) { e.src = '内置'; });
+    /* 日用品实测价格单独作为一条“基准”事件，不参与冲击向量 */
+    var extra = store('extra') || [];
+    var all = seed.events.concat(goods.events).concat(extra);
+    assignIds(all);
+    S.events = all;
+  }
+  function assignIds(list) {
+    list.forEach(function (e) {
+      if (!e.__sid) e.__sid = 'e' + Math.random().toString(36).slice(2, 9);
+      S.eventsById[e.__sid] = e;
+    });
+  }
+
+  function renderEventTable() {
+    var sorted = S.events.slice().sort(function (a, b) { return b.ts - a.ts; });
+    var lim = 500;
+    $('#eventTable tbody').innerHTML = sorted.slice(0, lim).map(function (e) {
+      return '<tr data-focus="' + esc(e.__sid) + '"><td>' + esc(e.date) + '</td><td>' + esc(commodityName(e.commodity)) + '</td><td class="t">' + esc(e.text) + '</td>' +
+        '<td class="num">' + (e.Dr ? e.Dr.toFixed(1) : '') + '</td><td class="num">' + (e.Ss ? e.Ss.toFixed(1) : '') + '</td><td>' + chipsOf(e) + '</td></tr>';
+    }).join('');
+    $('#eventCount').textContent = '共 ' + S.events.length + ' 条（显示最近 ' + Math.min(lim, S.events.length) + ' 条）';
+    $$('#eventTable tbody tr').forEach(function (tr) { tr.onclick = function () { focusEvent(tr.dataset.focus); }; });
+  }
+  function commodityName(c) { return { gold: '黄金', brent: '原油', gas: '天然气', daily: '日用品', custom: '通用' }[c] || c; }
+
+  function focusEvent(sid) {
+    var e = S.eventsById[sid];
+    if (!e) return;
+    var dim = document.createElement('div');
+    dim.className = 'modal-dim';
+    dim.innerHTML = '<div class="modal"><h2>事件详情</h2>' +
+      '<div class="ev-meta"><span>' + esc(e.date) + '</span><span>' + esc(commodityName(e.commodity)) + '</span><span>来源：' + esc(e.src) + '</span><span>权重 ' + e.weight + '</span>' + (e.future ? '<span>预期类</span>' : '') + '</div>' +
+      '<p class="ev-full">' + esc(e.text) + '</p><div class="ev-chips">' + chipsOf(e) + '</div>' +
+      '<div class="rate-preview">' + impactExplain(e) + '</div>' +
+      '<div class="modal-actions"><button class="btn ghost" id="evClose">关闭</button></div></div>';
+    document.body.appendChild(dim);
+    $('#evClose', dim).onclick = function () { dim.remove(); };
+    dim.onclick = function (ev) { if (ev.target === dim) dim.remove(); };
+  }
+  function impactExplain(e) {
+    var parts = [];
+    SIDES.forEach(function (k) {
+      var v = e[k] || 0;
+      if (Math.abs(v) < 0.01) return;
+      var m = {
+        Dr: v > 0 ? '需求增加 → 需求曲线右移 → 价格↑ 数量↑' : '需求减少 → 需求曲线左移 → 价格↓ 数量↓',
+        Ss: v > 0 ? '供给减少（中断/减产）→ 供给曲线左移 → 价格↑ 数量↓' : '供给增加（增产）→ 供给曲线右移 → 价格↓ 数量↑',
+        Sh: v > 0 ? '库存增加（累库）→ 相对供给变多 → 压低价格' : '库存下降（去库）→ 相对供给变少 → 推高价格',
+        Sp: v > 0 ? '价格被直接推高' : '价格被直接压低',
+        Fs: v > 0 ? '投机资金流入 → 放大波动' : '投机资金流出 → 削弱波动',
+        Ge: v > 0 ? '地缘溢价 / 避险 → 风险溢价上升' : '风险偏好回升',
+        Im: v > 0 ? '通胀升温 / 货币宽松 → 名义价格抬升，实际利率下行' : '通缩 / 货币紧缩 → 名义价格回落，实际利率上行',
+        Cb: '央行购金 → 黄金结构性需求（慢变量）'
+      }[k];
+      parts.push('<b>' + SIDE_LBL[k] + ' ' + (v > 0 ? '+' : '') + v.toFixed(2) + '</b>：' + m);
+    });
+    return parts.length ? parts.join('<br>') : '未识别出方向。可在文本中加入 DR+2（需求 +2）、DS-1.5（供给 −1.5）、SH+1（库存 +1）等快捷键。';
+  }
+
+  function importText(text, label) {
+    var res = P.parseText(text, { now: new Date() });
+    if (!res.events.length) {
+      toast('没有解析出方向性事件。' + (res.warnings[0] || '请检查格式，或在事件里写 DR+2 等快捷键。'), 'warn');
+      return res;
+    }
+    var exist = {};
+    S.events.forEach(function (e) { exist[e.date + '|' + e.commodity + '|' + e.text.slice(0, 36)] = 1; });
+    var newOnes = [];
+    res.events.forEach(function (e) {
+      var k = e.date + '|' + e.commodity + '|' + e.text.slice(0, 36);
+      if (exist[k]) return;
+      exist[k] = 1;
+      e.src = label || 'TXT';
+      newOnes.push(e);
+    });
+    assignIds(newOnes);
+    S.events = S.events.concat(newOnes);
+    /* 只持久化“非内置”的事件 */
+    store('extra', S.events.filter(function (e) { return e.src !== '内置'; }));
+    renderEventTable();
+    refreshAll();
+    toast('已解码 ' + res.format + '：新增 ' + newOnes.length + ' 条事件' + (res.warnings.length ? '（' + res.warnings.length + ' 行提示）' : ''), 'ok');
+    return res;
+  }
+
+  function readFile(file) {
+    var fr = new FileReader();
+    fr.onload = function () {
+      var dec = P.decodeBuffer(fr.result);
+      var res = importText(dec.text, file.name);
+      $('#decodeLog').innerHTML = '<div class="log-line">📄 ' + esc(file.name) + ' · 编码 <b>' + dec.encoding + '</b> · 识别格式 <b>' + res.format + '</b> · 解析 ' + res.events.length + ' 条 · 提示 ' + res.warnings.length + '</div>' +
+        (res.warnings.length ? '<div class="log-warn">' + res.warnings.slice(0, 20).map(esc).join('<br>') + '</div>' : '') + previewEvents(res.events);
+    };
+    fr.onerror = function () { toast('读取失败：' + file.name, 'warn'); };
+    fr.readAsArrayBuffer(file);
+  }
+  function previewEvents(list) {
+    if (!list || !list.length) return '';
+    return '<div class="ev-list preview">' + list.slice(0, 30).map(function (e) {
+      return '<div class="ev-item"><div class="ev-top"><span class="ev-date">' + esc(e.date) + '</span><span class="ev-w">' + esc(commodityName(e.commodity)) + ' · 权重 ' + e.weight + '</span></div>' +
+        '<div class="ev-text">' + esc(e.text) + '</div><div class="ev-chips">' + chipsOf(e) + '</div></div>';
+    }).join('') + '</div>';
+  }
+
+  function renderManualForm() {
+    $('#manualForm').innerHTML =
+      '<div class="mf-grid">' +
+      '<label>日期<input type="date" id="mDate" value="' + C.dateStr(new Date()) + '"></label>' +
+      '<label>品种<select id="mCom"><option value="gold">黄金</option><option value="brent">原油</option><option value="gas">天然气</option><option value="daily">日用品</option><option value="custom">通用</option></select></label>' +
+      '<label>权重<input type="number" id="mWeight" value="1" step="0.1" min="0.1" max="3"></label></div>' +
+      '<label class="full">事件描述<textarea id="mText" rows="3" placeholder="例：OPEC+ 意外宣布减产 100 万桶/日，供给减少 DS-2"></textarea></label>' +
+      '<div class="mf-actions"><button class="btn primary" id="mAdd">加入事件库</button><button class="btn ghost" id="mUseModal">用变量选择器生成</button></div>';
+    $('#mAdd').onclick = function () {
+      var t = ($('#mText').value || '').replace(/[\n\r,]/g, ' ');
+      if (!t.trim()) { toast('先写一句事件描述', 'warn'); return; }
+      var line = $('#mDate').value + ',' + $('#mCom').value + ',' + t + ',,,,' + $('#mWeight').value;
+      var res = P.parseText('日期,品种,事件,DR,DS,SH,权重\n' + line, { now: new Date() });
+      if (!res.events.length) { toast('没识别出方向：可写“需求大增 / 减产 / 累库”，或加 DR+2 标注', 'warn'); return; }
+      importText('日期,品种,事件,DR,DS,SH,权重\n' + line, '手动');
+      $('#mText').value = '';
+    };
+    $('#mUseModal').onclick = openEventBuilder;
+  }
+
+  function openEventBuilder() {
+    var picks = { Dr: 0, Ss: 0, Sh: 0, Fs: 0, Ge: 0, Im: 0, Cb: 0 };
+    var sizes = { Dr: 2, Ss: 2, Sh: 2, Fs: 2, Ge: 2, Im: 2, Cb: 2 };
+    var opts = [
+      { k: 'Dr', name: '需求', up: '需求变大', down: '需求变小' },
+      { k: 'Ss', name: '供给', up: '供给变小（减产/中断）', down: '供给变大（增产）' },
+      { k: 'Sh', name: '库存', up: '累库（库存增加）', down: '去库（库存减少）' },
+      { k: 'Fs', name: '投机资金', up: '净流入/多头', down: '净流出/空头' },
+      { k: 'Ge', name: '地缘 / 预期', up: '地缘紧张 / 看涨预期', down: '风险缓和 / 看跌预期' },
+      { k: 'Im', name: '通胀 / 货币', up: '通胀升温 / 宽松', down: '通缩 / 紧缩' },
+      { k: 'Cb', name: '央行购金', up: '央行增持', down: '央行减持' }
+    ];
+    var dim = document.createElement('div');
+    dim.className = 'modal-dim';
+    dim.innerHTML = '<div class="modal"><h2>事件生成器：我来选择变量</h2><p class="muted">每个变量选方向与幅度，系统换算成 DR / DS / SH 等标记，写入事件库后立刻参与实时算法。</p>' +
+      '<div class="builder">' + opts.map(function (o) {
+        return '<div class="bld" data-k="' + o.k + '"><div class="bld-n">' + o.name + '</div>' +
+          '<button class="dir up" data-dir="1">' + o.up + '</button><button class="dir down" data-dir="-1">' + o.down + '</button>' +
+          '<span class="size">' + [1, 2, 3].map(function (z) { return '<button class="sz" data-z="' + z + '">' + ['小', '中', '大'][z - 1] + '</button>'; }).join('') + '</span></div>';
+      }).join('') + '</div>' +
+      '<label class="full">事件描述（可留空）<input id="bldText" placeholder="例：红海航运中断，原油供给受影响"></label>' +
+      '<div class="mf-grid"><label>品种<select id="bldCom"><option value="gold">黄金</option><option value="brent">原油</option><option value="gas">天然气</option><option value="daily">日用品</option><option value="custom">通用</option></select></label>' +
+      '<label>日期<input type="date" id="bldDate" value="' + C.dateStr(new Date()) + '"></label></div>' +
+      '<div class="rate-preview" id="bldOut"></div>' +
+      '<div class="modal-actions"><button class="btn ghost" id="bldCancel">取消</button><button class="btn primary" id="bldOk">生成事件</button></div></div>';
+    document.body.appendChild(dim);
+    function scale(z) { return [0, 0.5, 1, 2][z]; }
+    function tags() { return Object.keys(picks).filter(function (k) { return picks[k]; }).map(function (k) { return k + (picks[k] > 0 ? '+' : '') + picks[k]; }); }
+    function out() {
+      var t = tags();
+      $('#bldOut', dim).innerHTML = t.length ? '将生成标记：<b>' + t.join(' ') + '</b>' : '尚未选择变量';
+    }
+    $$('.bld', dim).forEach(function (el) {
+      var k = el.dataset.k;
+      $$('[data-dir]', el).forEach(function (b) {
+        b.onclick = function () {
+          var dir = Number(b.dataset.dir);
+          picks[k] = (picks[k] * dir > 0) ? 0 : dir * scale(sizes[k]);
+          $$('[data-dir]', el).forEach(function (x) { x.classList.toggle('on', picks[k] * Number(x.dataset.dir) > 0); });
+          out();
+        };
+      });
+      $$('[data-z]', el).forEach(function (b) {
+        b.onclick = function () {
+          sizes[k] = Number(b.dataset.z);
+          if (picks[k]) picks[k] = Math.sign(picks[k]) * scale(sizes[k]);
+          $$('[data-z]', el).forEach(function (x) { x.classList.toggle('on', x === b); });
+          out();
+        };
+      });
+    });
+    $('#bldCancel', dim).onclick = function () { dim.remove(); };
+    $('#bldOk', dim).onclick = function () {
+      var t = tags();
+      if (!t.length) { toast('至少选择一个变量方向', 'warn'); return; }
+      var txt = ($('#bldText', dim).value || '变量选择器生成的事件') + ' ' + t.join(' ');
+      var line = $('#bldDate', dim).value + ',' + $('#bldCom', dim).value + ',' + txt + ',,,,' + 1;
+      var res = P.parseText('日期,品种,事件,DR,DS,SH,权重\n' + line, { now: new Date() });
+      if (!res.events.length) { toast('生成失败', 'warn'); return; }
+      importText('日期,品种,事件,DR,DS,SH,权重\n' + line, '选择器');
+      dim.remove();
+    };
+  }
+
+  /* --------------------------- 小工具 --------------------------- */
+  function toast(msg, kind) {
+    var el = document.createElement('div');
+    el.className = 'toast ' + (kind || '');
+    el.textContent = msg;
+    document.body.appendChild(el);
+    setTimeout(function () { el.classList.add('out'); }, 2800);
+    setTimeout(function () { el.remove(); }, 3500);
+  }
+  function downloadText(name, text) {
+    if (!text) { toast('示例内容缺失', 'warn'); return; }
+    var blob = new Blob(['\uFEFF' + text], { type: 'text/plain;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
+    toast('已下载示例：' + name, 'ok');
+  }
+  function setMode(mode) {
+    ['auto', 'hand', 'data'].forEach(function (m) {
+      var v = $('#view-' + m); if (v) v.classList.toggle('active', m === mode);
+      var b = $('#mode' + m.charAt(0).toUpperCase() + m.slice(1)); if (b) b.classList.toggle('on', m === mode);
+    });
+    if (mode === 'auto') renderAll();
+  }
+
+  function renderClock() {
+    var n = new Date();
+    $('#clock').textContent = C.dateStr(n) + ' ' + C.timeStr(n);
+  }
+
+  function tick() {
+    Object.keys(S.engines).forEach(function (cid) {
+      var eng = S.engines[cid];
+      eng.tick(S.tickMs / 86400000 * 40);
+      eng.hist.push({ t: Date.now(), p: eng.price });
+      if (eng.hist.length > 200) eng.hist.shift();
+    });
+    renderAll();
+    renderClock();
+  }
+
+  function bindGlobal() {
+    $('#modeAuto').onclick = function () { setMode('auto'); };
+    $('#modeHand').onclick = function () { setMode('hand'); renderHand(); };
+    $('#modeData').onclick = function () { setMode('data'); };
+    $('#rateEdit').onclick = function () { openRateDialog(false); };
+    $('#speed').onchange = function () { S.tickMs = Number($('#speed').value); restartTick(); renderAll(); };
+    $('#instGold').onchange = function () { S.inst.gold.dxy = C.num($('#instGold').value, 100); renderAll(); };
+    $('#instOil').onchange = function () { S.inst.brent.spare = C.num($('#instOil').value, 2.1); renderAll(); };
+    $('#instGas').onchange = function () { S.inst.gas.swing = C.num($('#instGas').value, 1) || 1; renderAll(); };
+
+    var fi = $('#fileInput');
+    fi.onchange = function () { Array.prototype.slice.call(fi.files).forEach(readFile); fi.value = ''; };
+    var drop = $('#dropZone');
+    drop.onclick = function () { fi.click(); };
+    drop.ondragover = function (ev) { ev.preventDefault(); drop.classList.add('over'); };
+    drop.ondragleave = function () { drop.classList.remove('over'); };
+    drop.ondrop = function (ev) {
+      ev.preventDefault(); drop.classList.remove('over');
+      Array.prototype.slice.call(ev.dataTransfer.files).forEach(function (f) {
+        if (/\.(txt|csv|tsv|json|log|md)$/i.test(f.name) || /^text\//.test(f.type)) readFile(f);
+        else toast('请拖入 .txt / .csv / .json 文本文件', 'warn');
+      });
+    };
+    $('#btnPaste').onclick = function () {
+      var t = $('#pasteArea').value;
+      if (!t.trim()) { toast('先粘贴一些文本，或点「载入内置示例库」', 'warn'); return; }
+      var r = importText(t, '粘贴');
+      $('#decodeLog').innerHTML = '<div class="log-line">粘贴文本 · 识别格式 <b>' + r.format + '</b> · 解析 ' + r.events.length + ' 条 · 提示 ' + r.warnings.length + '</div>' +
+        (r.warnings.length ? '<div class="log-warn">' + r.warnings.slice(0, 20).map(esc).join('<br>') + '</div>' : '') + previewEvents(r.events);
+    };
+    $('#btnSeed').onclick = function () { $('#pasteArea').value = G.SEED_TXT; toast('已载入内置示例库到文本框，可直接解码或另存为 .txt', 'ok'); };
+    $('#btnSampleCsv').onclick = function () { downloadText('示例1_CSV表格.txt', G.SAMPLES.csv); };
+    $('#btnSampleTable').onclick = function () { downloadText('示例2_空格对齐表格.txt', G.SAMPLES.table); };
+    $('#btnSampleNews').onclick = function () { downloadText('示例3_自由新闻体.txt', G.SAMPLES.news); };
+    $('#btnClearExtra').onclick = function () {
+      var keep = S.events.filter(function (e) { return e.src === '内置'; });
+      S.events = keep;
+      S.eventsById = {};
+      assignIds(keep);
+      store('extra', []);
+      renderEventTable();
+      refreshAll();
+      toast('已清空导入的事件（内置示例库保留）', 'ok');
+    };
+  }
+
+  function restartTick() {
+    if (S.tickTimer) clearInterval(S.tickTimer);
+    S.tickTimer = setInterval(tick, S.tickMs);
+  }
+
+  function boot() {
+    bootEvents();
+    S.rates = loadRatesToday();
+    bindGlobal();
+    renderEventTable();
+    renderManualForm();
+    renderRateChip();
+    renderHand();
+    setMode('auto');
+    renderAll();
+    restartTick();
+    renderClock();
+    setInterval(renderClock, 1000);
+    if (!S.rates) openRateDialog(true);
+    else onRatesReady();
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})(typeof globalThis !== 'undefined' ? globalThis : window);
+</script>
+</body>
+</html>
